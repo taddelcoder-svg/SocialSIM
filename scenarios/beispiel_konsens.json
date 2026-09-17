@@ -1,0 +1,25 @@
+{
+  "name": "Testfall: hoher Vertrauensradius fuehrt zu Konsens",
+  "notes": "Zweiter Testfall mit anderer Konfiguration (dichteres Netzwerk, groesseres epsilon) - soll laut Bounded-Confidence-Theorie eher zu einer Meinung konvergieren statt zu fragmentieren.",
+  "seed": 7,
+  "population": {
+    "size": 200,
+    "attributes": {}
+  },
+  "network": {
+    "type": "barabasi_albert",
+    "params": { "m": 4 }
+  },
+  "initial_state": {
+    "opinion": {
+      "kind": "beta",
+      "params": { "a": 2, "b": 2, "min": -1.0, "max": 1.0 }
+    }
+  },
+  "mechanics": {
+    "model": "bounded_confidence",
+    "params": { "epsilon": 0.8, "mu": 0.5 }
+  },
+  "events": [],
+  "time": { "steps": 40, "runs": 3 }
+}

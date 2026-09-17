@@ -1,0 +1,40 @@
+{
+  "name": "Testfall: Verbreitung eines neuen Verhaltens (Schwellenwertmodell)",
+  "notes": "Entspricht Szenario B im Framework-Dokument, Abschnitt 7. Schwellenwert- und Startverteilung folgen Rogers' empirisch etablierten Adopterkategorien statt einer frei gewaehlten Beta-Verteilung.",
+  "seed": 3,
+  "population": {
+    "size": 250,
+    "attributes": {
+      "threshold": {
+        "kind": "histogram",
+        "params": {
+          "bins": [
+            { "min": 0.0, "max": 0.025, "weight": 0.025 },
+            { "min": 0.025, "max": 0.16, "weight": 0.135 },
+            { "min": 0.16, "max": 0.5, "weight": 0.34 },
+            { "min": 0.5, "max": 0.84, "weight": 0.34 },
+            { "min": 0.84, "max": 1.0, "weight": 0.16 }
+          ]
+        },
+        "source": "Rogers (2003), Diffusion of Innovations, 5. Aufl.: Adopterkategorien als Anteile einer Normalverteilung der Uebernahmezeit - Innovators 2.5%, Early Adopters 13.5%, Early Majority 34%, Late Majority 34%, Laggards 16% - hier als Schwellenwert-Bins interpretiert (niedriger Wert = frueher Uebernehmer, unabhaengig von sozialem Druck)"
+      }
+    }
+  },
+  "network": {
+    "type": "watts_strogatz",
+    "params": { "k": 15, "beta": 0.15 }
+  },
+  "initial_state": {
+    "opinion": {
+      "kind": "choice",
+      "params": { "options": [0.0, 1.0], "weights": [0.975, 0.025] },
+      "source": "Rogers (2003): Anteil der 'Innovators' (2.5%), die ein neues Verhalten unabhaengig von sozialem Druck zuerst uebernehmen und die Kaskade ausloesen"
+    }
+  },
+  "mechanics": {
+    "model": "threshold",
+    "params": { "threshold_key": "threshold" }
+  },
+  "events": [],
+  "time": { "steps": 30, "runs": 5 }
+}

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sozialsimulator &ndash; Rahmen-UI</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Sozialsimulator</h1>
+  <p class="subtitle">Rahmen-UI &ndash; ein Szenario zusammenklicken, statt Code zu schreiben</p>
+</header>
+
+<main>
+  <section class="panel form-panel">
+    <div class="field-group">
+      <label for="example-select">Beispiel laden</label>
+      <select id="example-select">
+        <option value="">&ndash; eigenes Szenario &ndash;</option>
+      </select>
+    </div>
+
+    <fieldset>
+      <legend>1. Population</legend>
+      <div class="field-group">
+        <label for="pop-size">Gr&ouml;&szlig;e</label>
+        <input id="pop-size" type="number" min="2" value="200" />
+      </div>
+      <div class="field-group">
+        <label>Zusatzattribute (z.B. Alter, Schwellenwert, Glaubw&uuml;rdigkeit)</label>
+        <div id="attribute-list" class="dynamic-list"></div>
+        <button type="button" id="add-attribute" class="secondary">+ Attribut</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Umgebung (Netzwerk)</legend>
+      <div class="field-group">
+        <label for="network-type">Typ</label>
+        <select id="network-type">
+          <option value="watts_strogatz">Small-World (watts_strogatz)</option>
+          <option value="barabasi_albert">Skalenfrei (barabasi_albert)</option>
+          <option value="erdos_renyi">Zufallsgraph (erdos_renyi)</option>
+          <option value="grid">Raster (grid)</option>
+          <option value="complete">Vollst&auml;ndig verbunden (complete)</option>
+        </select>
+      </div>
+      <div id="network-params" class="dynamic-fields"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Ausgangszustand (Meinung)</legend>
+      <div class="field-group">
+        <label for="opinion-kind">Verteilung</label>
+        <select id="opinion-kind">
+          <option value="uniform">Gleichverteilt (uniform)</option>
+          <option value="normal">Normalverteilt (normal)</option>
+          <option value="beta">Beta</option>
+          <option value="choice">Diskret (choice)</option>
+          <option value="constant">Konstant</option>
+          <option value="histogram">Histogramm (reale Bins)</option>
+        </select>
+      </div>
+      <div id="opinion-params" class="dynamic-fields"></div>
+      <div class="field-group">
+        <label for="opinion-source">Quelle (optional, z.B. "WVS 2022")</label>
+        <input id="opinion-source" type="text" placeholder="woher stammt dieser Ausgangswert?" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. Mechanik (Verhaltensmodell)</legend>
+      <p class="muted">Mehrere Mechaniken laufen pro Zeitschritt in dieser Reihenfolge - jede sieht bereits das Ergebnis der vorherigen.</p>
+      <div id="mechanic-list" class="dynamic-list"></div>
+      <button type="button" id="add-mechanic" class="secondary">+ Mechanik</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>5. Externe Ereignisse</legend>
+      <div id="event-list" class="dynamic-list"></div>
+      <button type="button" id="add-event" class="secondary">+ Ereignis</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>6. Zeit &amp; Zufall</legend>
+      <div class="field-row">
+        <div class="field-group">
+          <label for="time-steps">Zeitschritte</label>
+          <input id="time-steps" type="number" min="1" value="50" />
+        </div>
+        <div class="field-group">
+          <label for="time-runs">Wiederholungen</label>
+          <input id="time-runs" type="number" min="1" value="3" />
+        </div>
+        <div class="field-group">
+          <label for="seed">Zufalls-Seed (leer = zuf&auml;llig)</label>
+          <input id="seed" type="number" placeholder="z.B. 42" />
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="button" id="run-button" class="primary">Simulation starten</button>
+      <button type="button" id="calibrate-button" class="secondary">Kalibrierung pr&uuml;fen</button>
+      <button type="button" id="export-button" class="secondary">Als JSON exportieren</button>
+    </div>
+    <p id="error-box" class="error hidden"></p>
+
+    <fieldset>
+      <legend>7. Sensitivit&auml;tsanalyse</legend>
+      <p class="muted">Variiert einen Parameter der obigen Konfiguration und zeigt, wie stark sich das Ergebnis dadurch &auml;ndert.</p>
+      <div class="field-group">
+        <label for="sens-param">Parameter (Dotted Path)</label>
+        <input id="sens-param" type="text" placeholder="z.B. mechanics.0.params.epsilon" value="mechanics.0.params.epsilon" />
+      </div>
+      <div class="field-group">
+        <label for="sens-values">Werte (Komma-getrennt)</label>
+        <input id="sens-values" type="text" placeholder="z.B. 0.1,0.3,0.5,0.8,1.2" value="0.1,0.3,0.5,0.8,1.2" />
+      </div>
+      <div class="field-group">
+        <label for="sens-metric">Metrik</label>
+        <select id="sens-metric">
+          <option value="std_opinion">Meinungsstreuung (std_opinion)</option>
+          <option value="mean_opinion">Mittlere Meinung (mean_opinion)</option>
+        </select>
+      </div>
+      <button type="button" id="sensitivity-button" class="secondary">Analyse starten</button>
+    </fieldset>
+  </section>
+
+  <section class="panel result-panel">
+    <h2>Ergebnis</h2>
+    <p id="result-summary" class="muted">Noch keine Simulation gestartet.</p>
+    <canvas id="result-chart" height="280"></canvas>
+
+    <div id="calibration-box" class="hidden">
+      <h3>Kalibrierung</h3>
+      <table id="calibration-table" class="calib-table"></table>
+    </div>
+
+    <div id="sensitivity-box" class="hidden">
+      <h3>Sensitivit&auml;tsanalyse</h3>
+      <p id="sensitivity-summary" class="muted"></p>
+      <canvas id="sensitivity-chart" height="220"></canvas>
+    </div>
+
+    <details>
+      <summary>Rohe Konfiguration (JSON)</summary>
+      <pre id="config-preview"></pre>
+    </details>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

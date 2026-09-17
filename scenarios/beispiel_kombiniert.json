@@ -1,0 +1,50 @@
+{
+  "name": "Testfall: DeGroot-Lernen kombiniert mit Bounded Confidence",
+  "notes": "Zeigt, dass 'mechanics' eine Liste sein kann (Framework-Abschnitt 5, 'kombinierbare Module'): pro Zeitschritt laeuft zuerst DeGroot (kontinuierliche, glaubwuerdigkeitsgewichtete Anpassung an alle Nachbarn), danach Bounded Confidence (zusaetzliche schnelle Angleichung an aehnlich Denkende) auf denselben Meinungen - jede Mechanik sieht bereits das Ergebnis der vorherigen im selben Tick. Alters-, Meinungs- und Glaubwuerdigkeitsverteilung stammen aus denselben realen Quellen wie in den Einzelszenarien.",
+  "seed": 21,
+  "population": {
+    "size": 300,
+    "attributes": {
+      "credibility": {
+        "kind": "histogram",
+        "params": {
+          "bins": [
+            { "min": 0.1, "max": 0.5, "weight": 0.90 },
+            { "min": 0.5, "max": 2.0, "weight": 0.09 },
+            { "min": 2.0, "max": 5.0, "weight": 0.01 }
+          ]
+        },
+        "source": "Nielsen (2006), 90-9-1-Regel der Beteiligungsungleichheit"
+      }
+    }
+  },
+  "network": {
+    "type": "watts_strogatz",
+    "params": { "k": 15, "beta": 0.1 }
+  },
+  "initial_state": {
+    "opinion": {
+      "kind": "histogram",
+      "params": {
+        "bins": [
+          { "min": -1.0, "max": -0.333, "weight": 0.11 },
+          { "min": -0.333, "max": 0.333, "weight": 0.18 },
+          { "min": 0.333, "max": 1.0, "weight": 0.71 }
+        ]
+      },
+      "source": "Special Eurobarometer 538 (Mai 2023), Deutschland - siehe beispiel_bounded_confidence.json"
+    }
+  },
+  "mechanics": [
+    { "model": "degroot", "params": { "self_weight": 0.7, "credibility_key": "credibility" } },
+    { "model": "bounded_confidence", "params": { "epsilon": 0.3, "mu": 0.4 } }
+  ],
+  "events": [
+    {
+      "tick": 15,
+      "type": "narrow_confidence",
+      "params": { "factor": 0.4, "duration": 10, "target": "bounded_confidence" }
+    }
+  ],
+  "time": { "steps": 50, "runs": 5 }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Testfall: Meinungsbildung zum Klimawandel in einem Small-World-Netzwerk",
+  "notes": "Entspricht Szenario A (Polarisierung) im Framework-Dokument, Abschnitt 7. Alters- und Meinungsverteilung stammen aus echten Erhebungen (siehe 'source' je Attribut), nicht aus Annahmen. network.k=15 folgt Dunbars 'sympathy group'-Schicht (Dunbar 1992; Zhou et al. 2005) als Naeherung fuer die Zahl regelmaessig gepflegter sozialer Kontakte. Dient weiterhin nur als Testfall fuer die Konfigurationsschicht.",
+  "seed": 42,
+  "population": {
+    "size": 300,
+    "attributes": {
+      "age": {
+        "kind": "histogram",
+        "params": {
+          "bins": [
+            { "min": 0, "max": 20, "weight": 0.188 },
+            { "min": 20, "max": 40, "weight": 0.245 },
+            { "min": 40, "max": 60, "weight": 0.268 },
+            { "min": 60, "max": 80, "weight": 0.226 },
+            { "min": 80, "max": 100, "weight": 0.072 }
+          ]
+        },
+        "source": "Statistisches Bundesamt (Destatis), Bevoelkerung nach Altersgruppen, Deutschland 2023"
+      }
+    }
+  },
+  "network": {
+    "type": "watts_strogatz",
+    "params": { "k": 15, "beta": 0.1 }
+  },
+  "initial_state": {
+    "opinion": {
+      "kind": "histogram",
+      "params": {
+        "bins": [
+          { "min": -1.0, "max": -0.333, "weight": 0.11 },
+          { "min": -0.333, "max": 0.333, "weight": 0.18 },
+          { "min": 0.333, "max": 1.0, "weight": 0.71 }
+        ]
+      },
+      "source": "Special Eurobarometer 538 'Climate change' (Mai 2023), Deutschland: 71% 'sehr ernstes Problem' (Skala 7-10), 18% 'eher ernst' (5-6), 11% 'nicht ernst' (1-4); linear auf [-1, 1] abgebildet"
+    }
+  },
+  "mechanics": {
+    "model": "bounded_confidence",
+    "params": { "epsilon": 0.3, "mu": 0.5 }
+  },
+  "events": [
+    {
+      "tick": 20,
+      "type": "narrow_confidence",
+      "params": { "factor": 0.3, "duration": 15 }
+    }
+  ],
+  "time": { "steps": 60, "runs": 5 }
+}
