@@ -666,3 +666,349 @@ function renderChart(data) {
 // Initialzustand: eine Mechanik und ein Attributbeispiel vorschlagen
 addMechanicRow();
 addAttributeRow("threshold", { kind: "beta", params: { a: 2, b: 5, min: 0, max: 1 } });
+
+// ==================== Modus-Umschalter (Einfach/Erweitert) ====================
+const modeSimpleBtn = document.getElementById("mode-simple-btn");
+const modeAdvancedBtn = document.getElementById("mode-advanced-btn");
+const simpleModeEl = document.getElementById("simple-mode");
+const advancedPanels = document.querySelectorAll(".advanced-only");
+
+function setMode(mode) {
+  const isSimple = mode === "simple";
+  simpleModeEl.classList.toggle("hidden", !isSimple);
+  advancedPanels.forEach((el) => el.classList.toggle("hidden", isSimple));
+  modeSimpleBtn.classList.toggle("active", isSimple);
+  modeAdvancedBtn.classList.toggle("active", !isSimple);
+}
+
+modeSimpleBtn.addEventListener("click", () => setMode("simple"));
+modeAdvancedBtn.addEventListener("click", () => setMode("advanced"));
+
+// ==================== Einfacher Modus (gefuehrter Wizard) ====================
+// Jeder Typ baut auf einem echten Beispielszenario auf (siehe scenarios/*.json) -
+// die zugrundeliegenden realen Datenquellen (Destatis, Eurobarometer, Rogers,
+// Nielsen) bleiben erhalten, nur die Bedienung ist reduziert auf EINEN Regler
+// plus Gruppengroesse/Dauer statt des vollen Formulars.
+const WIZARD_TYPES = {
+  meinung: {
+    label: "Meinungsbildung",
+    description: "Wie sich Meinungen in einer Gruppe entwickeln - bilden sich Lager, oder einigt man sich?",
+    exampleFile: "beispiel_bounded_confidence.json",
+    sliderLabel: "Wie offen sind Menschen für andere Meinungen?",
+    sliderMin: 0.1,
+    sliderMax: 1.0,
+    sliderStep: 0.05,
+    sliderDefault: 0.3,
+    sliderLowText: "sehr verschlossen",
+    sliderHighText: "sehr offen",
+    applySlider: (config, value) => {
+      config.mechanics[0].params.epsilon = value;
+    },
+    supportsEvent: true,
+    eventLabel: "Ein aufrüttelndes Ereignis einbauen (z.B. eine virale Nachricht)?",
+    addEvent: (config, tick) => {
+      config.events = [{ tick, type: "narrow_confidence", params: { factor: 0.3, duration: 15 } }];
+    },
+    summarySentence: (s) =>
+      `Du simulierst, wie sich Meinungen zum Klimawandel bei ${s.size} Personen entwickeln. ` +
+      `Sie orientieren sich ${s.sliderDesc} an Menschen mit ähnlicher Meinung. ` +
+      `Beobachtet wird über ${s.duration} Zeitschritte.` +
+      (s.eventOn ? ` Bei Schritt ${s.eventTick} kommt ein aufrüttelndes Ereignis dazu.` : ""),
+    interpret: (data) => {
+      const std = data.std_opinion[data.std_opinion.length - 1];
+      const mean = data.mean_opinion[data.mean_opinion.length - 1];
+      let sentence;
+      if (std < 0.15) sentence = "Die Gruppe einigt sich am Ende weitgehend auf eine gemeinsame Meinung.";
+      else if (std > 0.4) sentence = "Die Gruppe bleibt am Ende deutlich gespalten - es bildet sich keine gemeinsame Meinung.";
+      else sentence = "Es bildet sich eine Tendenz, aber ein Teil der Gruppe bleibt anderer Meinung.";
+      if (mean > 0.2) sentence += " Die Mehrheit tendiert dazu, das Thema ernst zu nehmen.";
+      else if (mean < -0.2) sentence += " Die Mehrheit tendiert dazu, das Thema nicht ernst zu nehmen.";
+      return sentence;
+    },
+  },
+  verhalten: {
+    label: "Verhaltensverbreitung",
+    description: "Wie sich ein neues Verhalten (z.B. ein Trend) in einer Gruppe ausbreitet.",
+    exampleFile: "beispiel_schwellenwert.json",
+    sliderLabel: "Wie gut ist die Gruppe vernetzt?",
+    sliderMin: 4,
+    sliderMax: 25,
+    sliderStep: 1,
+    sliderDefault: 15,
+    sliderLowText: "locker vernetzt",
+    sliderHighText: "eng vernetzt",
+    applySlider: (config, value) => {
+      config.network.params.k = value;
+    },
+    supportsEvent: false,
+    summarySentence: (s) =>
+      `Du simulierst, wie sich ein neues Verhalten bei ${s.size} Personen ausbreitet. ` +
+      `Die Gruppe ist ${s.sliderDesc}. Beobachtet wird über ${s.duration} Zeitschritte.`,
+    interpret: (data) => {
+      const share = data.mean_opinion[data.mean_opinion.length - 1];
+      const pct = Math.round(share * 100);
+      let sentence = `Am Ende haben ${pct}% der Gruppe das neue Verhalten übernommen.`;
+      if (share < 0.15) sentence += " Die Ausbreitung ist weitgehend ins Stocken geraten.";
+      else if (share > 0.8) sentence += " Fast alle haben mitgezogen - ein klarer Trend.";
+      else sentence += " Ein Teil der Gruppe ist dabei, der Rest (noch) nicht.";
+      return sentence;
+    },
+  },
+  information: {
+    label: "Informationsverbreitung",
+    description: "Wie glaubwürdig verschiedene Personen eine Botschaft weitertragen.",
+    exampleFile: "beispiel_degroot.json",
+    sliderLabel: "Wie stark bleiben Menschen bei ihrer eigenen Meinung?",
+    sliderMin: 0.1,
+    sliderMax: 0.9,
+    sliderStep: 0.05,
+    sliderDefault: 0.6,
+    sliderLowText: "leicht beeinflussbar",
+    sliderHighText: "sehr eigenständig",
+    applySlider: (config, value) => {
+      config.mechanics[0].params.self_weight = value;
+    },
+    supportsEvent: true,
+    eventLabel: "Eine gezielte Falschinformation einstreuen?",
+    addEvent: (config, tick) => {
+      config.events = [{ tick, type: "shift_opinion", params: { delta: 0.4, fraction: 0.05 } }];
+    },
+    summarySentence: (s) =>
+      `Du simulierst, wie glaubwürdig ${s.size} Personen eine Nachricht weitertragen. ` +
+      `Sie sind dabei ${s.sliderDesc}. Beobachtet wird über ${s.duration} Zeitschritte.` +
+      (s.eventOn ? ` Bei Schritt ${s.eventTick} wird gezielt Falschinformation gestreut.` : ""),
+    interpret: (data) => {
+      const std = data.std_opinion[data.std_opinion.length - 1];
+      const mean = data.mean_opinion[data.mean_opinion.length - 1];
+      if (std < 0.05) {
+        let sentence = "Am Ende teilt die Gruppe eine gemeinsame Einschätzung der Nachricht:";
+        if (mean > 0.6) sentence += " Sie hält sie für wahr.";
+        else if (mean < 0.4) sentence += " Sie hält sie für falsch.";
+        else sentence += " Sie ist sich einig, dass die Wahrheit unklar bleibt.";
+        return sentence;
+      }
+      let sentence = "Die Einschätzungen bleiben unterschiedlich - keine einheitliche Meinung zur Nachricht.";
+      if (mean > 0.6) sentence += " Tendenziell hält die Mehrheit sie eher für wahr.";
+      else if (mean < 0.4) sentence += " Tendenziell hält die Mehrheit sie eher für falsch.";
+      else sentence += " Die Gruppe ist gespalten, ob sie stimmt.";
+      return sentence;
+    },
+  },
+};
+
+const SIZE_OPTIONS = [
+  { label: "Klein", value: 100 },
+  { label: "Mittel", value: 300 },
+  { label: "Groß", value: 800 },
+];
+const DURATION_OPTIONS = [
+  { label: "Kurz", value: 20 },
+  { label: "Mittel", value: 50 },
+  { label: "Lang", value: 100 },
+];
+
+let wizardTypeKey = null;
+let wizardSize = SIZE_OPTIONS[1].value;
+let wizardDuration = DURATION_OPTIONS[1].value;
+let wizardLastConfig = null;
+let wizardLastResult = null;
+let wizardChart = null;
+
+function getExampleConfig(filename) {
+  const entry = loadedExamples.find((ex) => ex.file === filename);
+  if (!entry) return null;
+  const config = JSON.parse(entry.config);
+  // scenarios/*.json duerfen 'mechanics' als einzelnes Objekt ODER Liste haben
+  // (config.py akzeptiert beides) - der Wizard erwartet immer eine Liste.
+  if (!Array.isArray(config.mechanics)) config.mechanics = [config.mechanics];
+  return config;
+}
+
+function showWizardStep(stepEl) {
+  document.querySelectorAll("#simple-mode .wizard-step").forEach((el) => el.classList.add("hidden"));
+  stepEl.classList.remove("hidden");
+  const stepNumber = { "wizard-step-1": 1, "wizard-step-2": 2, "wizard-step-3": 3, "wizard-result": 3 }[stepEl.id];
+  document.querySelectorAll(".wizard-dot").forEach((dot) => {
+    const n = parseInt(dot.dataset.step, 10);
+    dot.classList.toggle("active", n === stepNumber);
+    dot.classList.toggle("done", n < stepNumber);
+  });
+}
+
+function renderWizardCards() {
+  const container = document.getElementById("wizard-type-cards");
+  container.innerHTML = "";
+  Object.entries(WIZARD_TYPES).forEach(([key, type]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wizard-card";
+    btn.innerHTML = `<strong>${type.label}</strong><span>${type.description}</span>`;
+    btn.addEventListener("click", () => {
+      wizardTypeKey = key;
+      renderWizardStep2();
+      showWizardStep(document.getElementById("wizard-step-2"));
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderChoiceRow(container, options, current, onPick) {
+  container.innerHTML = "";
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = opt.label;
+    btn.className = opt.value === current ? "active" : "";
+    btn.addEventListener("click", () => {
+      onPick(opt.value);
+      Array.from(container.children).forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderWizardStep2() {
+  const type = WIZARD_TYPES[wizardTypeKey];
+
+  renderChoiceRow(document.getElementById("wizard-size-choice"), SIZE_OPTIONS, wizardSize, (v) => (wizardSize = v));
+  renderChoiceRow(document.getElementById("wizard-duration-choice"), DURATION_OPTIONS, wizardDuration, (v) => (wizardDuration = v));
+
+  document.getElementById("wizard-slider-label").textContent = type.sliderLabel;
+  document.getElementById("wizard-slider-low").textContent = type.sliderLowText;
+  document.getElementById("wizard-slider-high").textContent = type.sliderHighText;
+  const slider = document.getElementById("wizard-slider");
+  slider.min = type.sliderMin;
+  slider.max = type.sliderMax;
+  slider.step = type.sliderStep;
+  slider.value = type.sliderDefault;
+
+  const eventGroup = document.getElementById("wizard-event-group");
+  eventGroup.classList.toggle("hidden", !type.supportsEvent);
+  document.getElementById("wizard-event-label").textContent = type.eventLabel || "";
+  const eventToggle = document.getElementById("wizard-event-toggle");
+  eventToggle.checked = false;
+  document.getElementById("wizard-event-tick-group").classList.add("hidden");
+  document.getElementById("wizard-event-tick").value = Math.round(wizardDuration / 3);
+}
+
+document.getElementById("wizard-event-toggle").addEventListener("change", (e) => {
+  document.getElementById("wizard-event-tick-group").classList.toggle("hidden", !e.target.checked);
+});
+
+document.getElementById("wizard-back-1").addEventListener("click", () => showWizardStep(document.getElementById("wizard-step-1")));
+
+document.getElementById("wizard-next-2").addEventListener("click", () => {
+  renderWizardStep3();
+  showWizardStep(document.getElementById("wizard-step-3"));
+});
+
+document.getElementById("wizard-back-2").addEventListener("click", () => showWizardStep(document.getElementById("wizard-step-2")));
+
+function buildWizardConfig() {
+  const type = WIZARD_TYPES[wizardTypeKey];
+  const base = getExampleConfig(type.exampleFile);
+  if (!base) return null;
+
+  base.population.size = wizardSize;
+  base.time.steps = wizardDuration;
+
+  const sliderValue = parseFloat(document.getElementById("wizard-slider").value);
+  type.applySlider(base, sliderValue);
+
+  const eventOn = type.supportsEvent && document.getElementById("wizard-event-toggle").checked;
+  if (eventOn) {
+    const tick = parseInt(document.getElementById("wizard-event-tick").value, 10);
+    type.addEvent(base, tick);
+  } else {
+    base.events = [];
+  }
+
+  return base;
+}
+
+function renderWizardStep3() {
+  const type = WIZARD_TYPES[wizardTypeKey];
+  const sliderValue = parseFloat(document.getElementById("wizard-slider").value);
+  const midpoint = (type.sliderMin + type.sliderMax) / 2;
+  const sliderDesc = sliderValue < midpoint ? type.sliderLowText : type.sliderHighText;
+  const eventOn = type.supportsEvent && document.getElementById("wizard-event-toggle").checked;
+  const eventTick = document.getElementById("wizard-event-tick").value;
+
+  document.getElementById("wizard-summary").textContent = type.summarySentence({
+    size: wizardSize,
+    duration: wizardDuration,
+    sliderDesc,
+    eventOn,
+    eventTick,
+  });
+}
+
+document.getElementById("wizard-run").addEventListener("click", async () => {
+  const wizardError = document.getElementById("wizard-error");
+  wizardError.classList.add("hidden");
+
+  const config = buildWizardConfig();
+  if (!config) {
+    wizardError.textContent = "Beispiel-Konfiguration noch nicht geladen - bitte kurz warten und erneut versuchen.";
+    wizardError.classList.remove("hidden");
+    return;
+  }
+  wizardLastConfig = config;
+
+  try {
+    const response = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      wizardError.textContent = data.error || "Unbekannter Fehler";
+      wizardError.classList.remove("hidden");
+      return;
+    }
+    wizardLastResult = data;
+    document.getElementById("wizard-interpretation").textContent = WIZARD_TYPES[wizardTypeKey].interpret(data);
+    renderWizardChart(data);
+    showWizardStep(document.getElementById("wizard-result"));
+  } catch (err) {
+    wizardError.textContent = `Verbindung zum Server fehlgeschlagen: ${err.message}`;
+    wizardError.classList.remove("hidden");
+  }
+});
+
+function renderWizardChart(data) {
+  const ctx = document.getElementById("wizard-chart");
+  if (wizardChart) wizardChart.destroy();
+  wizardChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.ticks,
+      datasets: [
+        {
+          label: "Mittlerer Wert",
+          data: data.mean_opinion,
+          borderColor: "#2f6f4f",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          tension: 0.15,
+        },
+      ],
+    },
+    options: { responsive: true, scales: { x: { title: { display: true, text: "Zeitschritt" } } } },
+  });
+}
+
+document.getElementById("wizard-restart").addEventListener("click", () => {
+  wizardTypeKey = null;
+  showWizardStep(document.getElementById("wizard-step-1"));
+});
+
+document.getElementById("wizard-open-advanced").addEventListener("click", () => {
+  if (wizardLastConfig) loadConfigIntoForm(wizardLastConfig);
+  setMode("advanced");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+renderWizardCards();

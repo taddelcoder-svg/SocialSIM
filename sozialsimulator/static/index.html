@@ -11,10 +11,78 @@
 <header>
   <h1>Sozialsimulator</h1>
   <p class="subtitle">Rahmen-UI &ndash; ein Szenario zusammenklicken, statt Code zu schreiben</p>
+  <div class="mode-toggle">
+    <button type="button" id="mode-simple-btn" class="mode-btn active">Einfach</button>
+    <button type="button" id="mode-advanced-btn" class="mode-btn">Erweitert</button>
+  </div>
 </header>
 
 <main>
-  <section class="panel form-panel">
+  <section class="panel wizard-panel" id="simple-mode">
+    <div class="wizard-progress">
+      <span class="wizard-dot" data-step="1">1</span>
+      <span class="wizard-dot" data-step="2">2</span>
+      <span class="wizard-dot" data-step="3">3</span>
+    </div>
+
+    <div id="wizard-step-1" class="wizard-step">
+      <h2>Was m&ouml;chtest du herausfinden?</h2>
+      <div class="wizard-cards" id="wizard-type-cards"></div>
+    </div>
+
+    <div id="wizard-step-2" class="wizard-step hidden">
+      <h2>Stellschrauben</h2>
+      <div class="field-group">
+        <label>Gruppengr&ouml;&szlig;e</label>
+        <div class="wizard-choice-row" id="wizard-size-choice"></div>
+      </div>
+      <div class="field-group">
+        <label>Beobachtungsdauer</label>
+        <div class="wizard-choice-row" id="wizard-duration-choice"></div>
+      </div>
+      <div class="field-group">
+        <label id="wizard-slider-label"></label>
+        <input type="range" id="wizard-slider" />
+        <div class="wizard-slider-ends">
+          <span id="wizard-slider-low"></span>
+          <span id="wizard-slider-high"></span>
+        </div>
+      </div>
+      <div class="field-group" id="wizard-event-group">
+        <label><input type="checkbox" id="wizard-event-toggle" /> <span id="wizard-event-label"></span></label>
+        <div id="wizard-event-tick-group" class="hidden">
+          <label for="wizard-event-tick">Bei welchem Zeitschritt?</label>
+          <input type="number" id="wizard-event-tick" min="1" />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="wizard-back-1" class="secondary">Zur&uuml;ck</button>
+        <button type="button" id="wizard-next-2" class="primary">Weiter</button>
+      </div>
+    </div>
+
+    <div id="wizard-step-3" class="wizard-step hidden">
+      <h2>Zusammenfassung</h2>
+      <p id="wizard-summary" class="wizard-summary-text"></p>
+      <div class="actions">
+        <button type="button" id="wizard-back-2" class="secondary">Zur&uuml;ck</button>
+        <button type="button" id="wizard-run" class="primary">Simulation starten</button>
+      </div>
+      <p id="wizard-error" class="error hidden"></p>
+    </div>
+
+    <div id="wizard-result" class="wizard-step hidden">
+      <h2>Ergebnis</h2>
+      <p id="wizard-interpretation" class="wizard-summary-text"></p>
+      <canvas id="wizard-chart" height="260"></canvas>
+      <div class="actions">
+        <button type="button" id="wizard-restart" class="secondary">Neues Szenario</button>
+        <button type="button" id="wizard-open-advanced" class="secondary">Erweiterte Ansicht &ouml;ffnen</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel form-panel advanced-only hidden">
     <div class="field-group">
       <label for="example-select">Beispiel laden</label>
       <select id="example-select">
@@ -130,7 +198,7 @@
     </fieldset>
   </section>
 
-  <section class="panel result-panel">
+  <section class="panel result-panel advanced-only hidden">
     <h2>Ergebnis</h2>
     <p id="result-summary" class="muted">Noch keine Simulation gestartet.</p>
     <canvas id="result-chart" height="280"></canvas>

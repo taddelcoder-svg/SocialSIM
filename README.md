@@ -28,12 +28,22 @@ python -m sozialsimulator.run scenarios/beispiel_kombiniert.json
 python -m sozialsimulator.webapp
 ```
 
-Startet einen lokalen Server unter `http://127.0.0.1:5000`. Population, Netzwerk,
-Ausgangszustand, Mechanik, Ereignisse und Zeit werden per Formular zusammengestellt
-(inkl. "Beispiel laden" fuer die `scenarios/*.json`, mehrere Mechaniken als eigene Zeilen); "Simulation starten"
-ruft `/api/run` auf, das dieselbe `run_scenario`-Funktion wie die CLI nutzt, und
-zeichnet mittlere Meinung ± Streuung ueber die Zeit. "Als JSON exportieren"
-speichert die zusammengeklickte Konfiguration im selben Format wie `scenarios/*.json`.
+Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben rechts umschaltbar):
+
+- **Einfach** (Standard): ein gefuehrter 3-Schritte-Wizard - Szenario-Typ waehlen
+  (Meinungsbildung / Verhaltensverbreitung / Informationsverbreitung), EIN
+  Regler plus Gruppengroesse/Dauer einstellen, Ergebnis als Klartext-Satz
+  ("Die Gruppe bleibt gespalten...") statt Rohzahlen. Baut intern auf den
+  echten Beispielszenarien auf (siehe naechster Abschnitt) - die Datenquellen
+  bleiben erhalten, nur die Bedienung ist reduziert.
+- **Erweitert**: das volle Formular (Population, Netzwerk, Ausgangszustand,
+  mehrere Mechaniken, Ereignisse, Kalibrierung, Sensitivitaetsanalyse). "Aus
+  dem Wizard heraus oeffnen" uebernimmt die gerade simulierte Konfiguration
+  1:1 in dieses Formular zum Weiterschrauben.
+
+Beide Modi rufen dieselben `/api/*`-Endpunkte auf, die intern denselben Code
+wie die CLI nutzen (`run_scenario`, `check_calibration`, `run_sensitivity`) -
+keine Logik ist in JavaScript dupliziert.
 
 Falls `OpenBLAS error: Memory allocation still failed` beim Start erscheint:
 `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m sozialsimulator.webapp`
