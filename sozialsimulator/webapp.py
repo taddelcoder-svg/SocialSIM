@@ -17,6 +17,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from .calibration import check_calibration
 from .config import ConfigError, ScenarioConfig
+from .data_sources import list_data_sources
 from .run import run_scenario
 from .sensitivity import run_sensitivity
 
@@ -68,6 +69,12 @@ def run():
             "mechanic": " + ".join(m.model for m in config.mechanics),
         }
     )
+
+
+@app.route("/api/data-sources")
+def data_sources():
+    """Katalog realer Verteilungen fuer eigene Szenarien (Framework-Abschnitt 6)."""
+    return jsonify(list_data_sources(request.args.get("applies_to")))
 
 
 @app.route("/api/calibrate", methods=["POST"])

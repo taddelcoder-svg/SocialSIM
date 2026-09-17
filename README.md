@@ -30,12 +30,19 @@ python -m sozialsimulator.webapp
 
 Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben rechts umschaltbar):
 
-- **Einfach** (Standard): ein gefuehrter 3-Schritte-Wizard - Szenario-Typ waehlen
-  (Meinungsbildung / Verhaltensverbreitung / Informationsverbreitung), EIN
-  Regler plus Gruppengroesse/Dauer einstellen, Ergebnis als Klartext-Satz
-  ("Die Gruppe bleibt gespalten...") statt Rohzahlen. Baut intern auf den
-  echten Beispielszenarien auf (siehe naechster Abschnitt) - die Datenquellen
-  bleiben erhalten, nur die Bedienung ist reduziert.
+- **Einfach** (Standard): ein gefuehrter Wizard - entweder einen der drei
+  vorgefertigten Typen waehlen (Meinungsbildung / Verhaltensverbreitung /
+  Informationsverbreitung, EIN Regler plus Gruppengroesse/Dauer), oder
+  **"Eigenes Szenario"**: eigenes Thema eintippen, zugrundeliegende Kategorie
+  waehlen, und die Ausgangswerte entweder aus dem Datenquellen-Katalog
+  (`data_sources.py`, z.B. Eurobarometer-Klimasorge oder Rogers'
+  Frühe-Übernehmer-Anteil) oder als eigene Prozent-Schätzung setzen - die
+  Quelle wird immer im Ergebnis zitiert. Antwort als Klartext-Satz
+  ("Die Gruppe bleibt gespalten...") statt Rohzahlen.
+- **Datenquellen-Katalog** (`/api/data-sources`): reale, zitierte Verteilungen,
+  die sowohl im "Eigenes Szenario"-Wizard als auch programmatisch
+  wiederverwendbar sind - erweiterbar durch neue Einträge in
+  `data_sources.py` (Distribution + Zitat + `applies_to`).
 - **Erweitert**: das volle Formular (Population, Netzwerk, Ausgangszustand,
   mehrere Mechaniken, Ereignisse, Kalibrierung, Sensitivitaetsanalyse). "Aus
   dem Wizard heraus oeffnen" uebernimmt die gerade simulierte Konfiguration
@@ -123,7 +130,8 @@ Abschnitt "Sensitivitätsanalyse" im Formular).
 - `sozialsimulator/events.py` – externe Ereignisse zu festen Zeitschritten
 - `sozialsimulator/model.py` – verbindet alles zu einem lauffähigen Mesa-Modell
 - `sozialsimulator/run.py` – CLI: Szenario laden, mehrfach ausführen (`time.runs`), Ergebnis als CSV
-- `sozialsimulator/webapp.py` + `sozialsimulator/static/` – Rahmen-UI: Formular baut ein Szenario-JSON, `/api/run`, `/api/calibrate`, `/api/sensitivity` fuehren es ueber denselben Code wie die CLI aus
+- `sozialsimulator/webapp.py` + `sozialsimulator/static/` – Rahmen-UI (gefuehrter Wizard + erweitertes Formular): `/api/run`, `/api/calibrate`, `/api/sensitivity`, `/api/data-sources` fuehren denselben Code wie die CLI aus
+- `sozialsimulator/data_sources.py` – Katalog realer, zitierter Verteilungen fuer eigene Szenarien (Framework-Abschnitt 6)
 - `sozialsimulator/paths.py` – Dotted-Path-Zugriff auf ein Config-Dict (fuer die Sensitivitaetsanalyse)
 - `sozialsimulator/calibration.py` – vergleicht gezogene Stichproben mit den Zielgewichten der Config (Framework-Abschnitt 8)
 - `sozialsimulator/sensitivity.py` – variiert einen Parameter ueber eine Werteliste und misst die Auswirkung auf eine Metrik (Framework-Abschnitt 8)

@@ -827,7 +827,13 @@ function getExampleConfig(filename) {
 function showWizardStep(stepEl) {
   document.querySelectorAll("#simple-mode .wizard-step").forEach((el) => el.classList.add("hidden"));
   stepEl.classList.remove("hidden");
-  const stepNumber = { "wizard-step-1": 1, "wizard-step-2": 2, "wizard-step-3": 3, "wizard-result": 3 }[stepEl.id];
+  const stepNumber = {
+    "wizard-step-1": 1,
+    "wizard-custom-setup": 1,
+    "wizard-step-2": 2,
+    "wizard-step-3": 3,
+    "wizard-result": 3,
+  }[stepEl.id];
   document.querySelectorAll(".wizard-dot").forEach((dot) => {
     const n = parseInt(dot.dataset.step, 10);
     dot.classList.toggle("active", n === stepNumber);
@@ -844,12 +850,113 @@ function renderWizardCards() {
     btn.className = "wizard-card";
     btn.innerHTML = `<strong>${type.label}</strong><span>${type.description}</span>`;
     btn.addEventListener("click", () => {
+      wizardIsCustom = false;
       wizardTypeKey = key;
       renderWizardStep2();
       showWizardStep(document.getElementById("wizard-step-2"));
     });
     container.appendChild(btn);
   });
+
+  const customBtn = document.createElement("button");
+  customBtn.type = "button";
+  customBtn.className = "wizard-card";
+  customBtn.innerHTML =
+    "<strong>Eigenes Szenario</strong><span>Eigenes Thema mit passenden echten Daten oder einer eigenen Schätzung als Ausgangswert.</span>";
+  customBtn.addEventListener("click", () => {
+    wizardIsCustom = true;
+    renderWizardCustomSetup();
+    showWizardStep(document.getElementById("wizard-custom-setup"));
+  });
+  container.appendChild(customBtn);
+}
+
+// ---- "Eigenes Szenario": Thema + zugrundeliegende Kategorie + Datenquelle ----
+const CUSTOM_APPLIES_TO = { meinung: "opinion_continuous", verhalten: "initial_adoption", information: null };
+const CUSTOM_ESTIMATE_LABEL = {
+  meinung: "Wie viele finden das Thema anfangs sehr wichtig?",
+  verhalten: "Wie viele haben es anfangs schon übernommen?",
+  information: "Wie viele halten es anfangs für glaubwürdig?",
+};
+
+let wizardIsCustom = false;
+let wizardCustomSource = null; // ausgewaehlter Katalogeintrag ODER null (= eigene Schaetzung)
+
+function renderWizardCustomSetup() {
+  const container = document.getElementById("wizard-custom-kind-cards");
+  container.innerHTML = "";
+  ["meinung", "verhalten", "information"].forEach((key) => {
+    const type = WIZARD_TYPES[key];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wizard-card";
+    btn.innerHTML = `<strong>${type.label}</strong><span>${type.description}</span>`;
+    btn.addEventListener("click", async () => {
+      Array.from(container.children).forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+      wizardTypeKey = key;
+      document.getElementById("wizard-custom-next").disabled = false;
+      await renderCustomSourceGroup(key);
+    });
+    container.appendChild(btn);
+  });
+}
+
+async function renderCustomSourceGroup(key) {
+  const group = document.getElementById("wizard-custom-source-group");
+  const appliesTo = CUSTOM_APPLIES_TO[key];
+  document.getElementById("wizard-custom-estimate-label").textContent = CUSTOM_ESTIMATE_LABEL[key];
+  wizardCustomSource = null;
+
+  let catalog = [];
+  if (appliesTo) {
+    try {
+      const resp = await fetch(`/api/data-sources?applies_to=${encodeURIComponent(appliesTo)}`);
+      catalog = await resp.json();
+    } catch {
+      catalog = [];
+    }
+  }
+
+  const options = [...catalog.map((entry) => ({ label: entry.label, value: entry })), { label: "Eigene Schätzung", value: null }];
+  renderChoiceRow(document.getElementById("wizard-custom-source-choice"), options, null, (value) => {
+    wizardCustomSource = value;
+    document.getElementById("wizard-custom-source-citation").textContent = value ? value.citation : "";
+    document.getElementById("wizard-custom-estimate-group").classList.toggle("hidden", !!value);
+  });
+  // Erste Option (falls vorhanden) macht die Radio-Buttons vergleichbar, Auswahl per Klick noetig -
+  // Default ist "Eigene Schaetzung", da eine reale Quelle nur passt, wenn sie zum eigenen Thema passt.
+  document.getElementById("wizard-custom-estimate-group").classList.remove("hidden");
+  document.getElementById("wizard-custom-source-citation").textContent = "";
+  group.classList.remove("hidden");
+}
+
+document.getElementById("wizard-custom-estimate").addEventListener("input", (e) => {
+  document.getElementById("wizard-custom-estimate-value").textContent = `${e.target.value}%`;
+});
+
+document.getElementById("wizard-custom-back").addEventListener("click", () => {
+  showWizardStep(document.getElementById("wizard-step-1"));
+});
+
+document.getElementById("wizard-custom-next").addEventListener("click", () => {
+  renderWizardStep2();
+  showWizardStep(document.getElementById("wizard-step-2"));
+});
+
+function customInitialStateDistribution() {
+  if (wizardCustomSource) {
+    return { ...wizardCustomSource.distribution, source: wizardCustomSource.citation };
+  }
+  const pct = parseInt(document.getElementById("wizard-custom-estimate").value, 10);
+  const label = `Eigene Schätzung: ${pct}%`;
+  if (wizardTypeKey === "verhalten") {
+    return { kind: "choice", params: { options: [0.0, 1.0], weights: [1 - pct / 100, pct / 100] }, source: label };
+  }
+  if (wizardTypeKey === "information") {
+    return { kind: "normal", params: { mean: pct / 100, std: 0.25, min: 0.0, max: 1.0 }, source: label };
+  }
+  return { kind: "normal", params: { mean: (pct / 100) * 2 - 1, std: 0.4, min: -1.0, max: 1.0 }, source: label };
 }
 
 function renderChoiceRow(container, options, current, onPick) {
@@ -896,7 +1003,9 @@ document.getElementById("wizard-event-toggle").addEventListener("change", (e) =>
   document.getElementById("wizard-event-tick-group").classList.toggle("hidden", !e.target.checked);
 });
 
-document.getElementById("wizard-back-1").addEventListener("click", () => showWizardStep(document.getElementById("wizard-step-1")));
+document.getElementById("wizard-back-1").addEventListener("click", () => {
+  showWizardStep(document.getElementById(wizardIsCustom ? "wizard-custom-setup" : "wizard-step-1"));
+});
 
 document.getElementById("wizard-next-2").addEventListener("click", () => {
   renderWizardStep3();
@@ -924,6 +1033,12 @@ function buildWizardConfig() {
     base.events = [];
   }
 
+  if (wizardIsCustom) {
+    base.initial_state.opinion = customInitialStateDistribution();
+    const topic = document.getElementById("wizard-custom-topic").value.trim();
+    base.name = topic ? `Eigenes Szenario: ${topic}` : "Eigenes Szenario";
+  }
+
   return base;
 }
 
@@ -934,6 +1049,18 @@ function renderWizardStep3() {
   const sliderDesc = sliderValue < midpoint ? type.sliderLowText : type.sliderHighText;
   const eventOn = type.supportsEvent && document.getElementById("wizard-event-toggle").checked;
   const eventTick = document.getElementById("wizard-event-tick").value;
+
+  if (wizardIsCustom) {
+    const topic = document.getElementById("wizard-custom-topic").value.trim() || "dein Thema";
+    const sourceNote = wizardCustomSource
+      ? `Ausgangswerte basieren auf: ${wizardCustomSource.label}.`
+      : `Ausgangswerte: eigene Schätzung (${document.getElementById("wizard-custom-estimate").value}%).`;
+    document.getElementById("wizard-summary").textContent =
+      `Du simulierst "${topic}" (${type.label.toLowerCase()}) bei ${wizardSize} Personen. ` +
+      `Sie sind dabei ${sliderDesc}. Beobachtet wird über ${wizardDuration} Zeitschritte. ${sourceNote}` +
+      (eventOn ? ` Bei Schritt ${eventTick} kommt ein Ereignis dazu.` : "");
+    return;
+  }
 
   document.getElementById("wizard-summary").textContent = type.summarySentence({
     size: wizardSize,
@@ -1002,6 +1129,11 @@ function renderWizardChart(data) {
 
 document.getElementById("wizard-restart").addEventListener("click", () => {
   wizardTypeKey = null;
+  wizardIsCustom = false;
+  wizardCustomSource = null;
+  document.getElementById("wizard-custom-topic").value = "";
+  document.getElementById("wizard-custom-next").disabled = true;
+  document.getElementById("wizard-custom-source-group").classList.add("hidden");
   showWizardStep(document.getElementById("wizard-step-1"));
 });
 

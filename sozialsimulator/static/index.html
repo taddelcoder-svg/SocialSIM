@@ -30,6 +30,32 @@
       <div class="wizard-cards" id="wizard-type-cards"></div>
     </div>
 
+    <div id="wizard-custom-setup" class="wizard-step hidden">
+      <h2>Eigenes Szenario</h2>
+      <div class="field-group">
+        <label for="wizard-custom-topic">Worum geht es? (kurzer Titel)</label>
+        <input type="text" id="wizard-custom-topic" placeholder="z.B. Akzeptanz von Homeoffice" />
+      </div>
+      <div class="field-group">
+        <label>Was davon m&ouml;chtest du untersuchen?</label>
+        <div class="wizard-cards" id="wizard-custom-kind-cards"></div>
+      </div>
+      <div class="field-group hidden" id="wizard-custom-source-group">
+        <label id="wizard-custom-source-label">Ausgangswerte</label>
+        <div class="wizard-choice-row" id="wizard-custom-source-choice"></div>
+        <p id="wizard-custom-source-citation" class="muted"></p>
+        <div id="wizard-custom-estimate-group">
+          <label id="wizard-custom-estimate-label"></label>
+          <input type="range" id="wizard-custom-estimate" min="0" max="100" step="5" value="30" />
+          <div class="wizard-slider-ends"><span>0%</span><span id="wizard-custom-estimate-value">30%</span><span>100%</span></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="wizard-custom-back" class="secondary">Zur&uuml;ck</button>
+        <button type="button" id="wizard-custom-next" class="primary" disabled>Weiter</button>
+      </div>
+    </div>
+
     <div id="wizard-step-2" class="wizard-step hidden">
       <h2>Stellschrauben</h2>
       <div class="field-group">
