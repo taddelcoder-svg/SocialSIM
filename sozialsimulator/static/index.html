@@ -67,6 +67,21 @@
           <input type="number" id="s-event-tick" min="1" />
         </div>
       </div>
+      <div class="field-group" id="s-second-topic-group">
+        <label><input type="checkbox" id="s-second-topic-toggle" /> Zweites, damit zusammenh&auml;ngendes Thema hinzuf&uuml;gen</label>
+        <div id="s-second-topic-fields" class="hidden">
+          <label for="s-second-topic-name">Name des zweiten Themas</label>
+          <input type="text" id="s-second-topic-name" placeholder="z.B. energiepolitik" value="thema2" />
+
+          <label for="s-second-topic-estimate">Wie viele finden das zweite Thema anfangs wichtig?</label>
+          <input type="range" id="s-second-topic-estimate" min="0" max="100" step="5" value="30" />
+          <div class="wizard-slider-ends"><span>0%</span><span id="s-second-topic-estimate-value">30%</span><span>100%</span></div>
+
+          <label for="s-second-topic-corr">Wie stark h&auml;ngt es mit dem ersten Thema zusammen?</label>
+          <input type="range" id="s-second-topic-corr" min="0" max="1" step="0.05" value="0.5" />
+          <div class="wizard-slider-ends"><span>unabh&auml;ngig</span><span id="s-second-topic-corr-value">50%</span><span>fast identisch</span></div>
+        </div>
+      </div>
     </details>
 
     <div class="actions">

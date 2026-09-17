@@ -968,6 +968,7 @@ let simRealDataEntry = null;
 let simLastConfig = null;
 let simLastData = null;
 let simChart = null;
+let simSecondTopicName = null;
 
 function simGetExampleConfig(filename) {
   const entry = loadedExamples.find((ex) => ex.file === filename);
@@ -1071,6 +1072,16 @@ document.getElementById("s-event-toggle").addEventListener("change", (e) => {
   document.getElementById("s-event-tick-group").classList.toggle("hidden", !e.target.checked);
 });
 
+document.getElementById("s-second-topic-toggle").addEventListener("change", (e) => {
+  document.getElementById("s-second-topic-fields").classList.toggle("hidden", !e.target.checked);
+});
+document.getElementById("s-second-topic-estimate").addEventListener("input", (e) => {
+  document.getElementById("s-second-topic-estimate-value").textContent = `${e.target.value}%`;
+});
+document.getElementById("s-second-topic-corr").addEventListener("input", (e) => {
+  document.getElementById("s-second-topic-corr-value").textContent = `${Math.round(e.target.value * 100)}%`;
+});
+
 simRenderChoiceRow(document.getElementById("s-size-choice"), SIM_SIZE_OPTIONS, simSize, (v) => (simSize = v));
 simRenderChoiceRow(document.getElementById("s-duration-choice"), SIM_DURATION_OPTIONS, simDuration, (v) => (simDuration = v));
 
@@ -1103,6 +1114,26 @@ function simBuildConfig() {
   const topic = document.getElementById("s-topic").value.trim();
   base.name = topic ? `${topic} (${kind.label})` : kind.label;
 
+  // Optionales zweites Thema: nutzt dieselbe Verteilungsform/-spanne wie das
+  // erste (kind.estimateDistribution), damit beide Themen vergleichbar bleiben,
+  // und wird per correlated_with an "opinion" gekoppelt (siehe config.py). Die
+  // gleiche Mechanik/Parameter wie fuer Thema 1 wird zusaetzlich auf das zweite
+  // Thema angewendet - ein bewusst einfaches Modell, keine eigene Feinsteuerung.
+  simSecondTopicName = null;
+  if (document.getElementById("s-second-topic-toggle").checked) {
+    const secondName = document.getElementById("s-second-topic-name").value.trim() || "thema2";
+    if (secondName !== "opinion") {
+      const secondPct = parseInt(document.getElementById("s-second-topic-estimate").value, 10);
+      const corrStrength = parseFloat(document.getElementById("s-second-topic-corr").value);
+      const secondDist = kind.estimateDistribution(secondPct);
+      secondDist.source = `Eigene Schätzung: ${secondPct}% (korreliert mit "opinion", Stärke ${corrStrength})`;
+      secondDist.correlated_with = { topic: "opinion", strength: corrStrength };
+      base.initial_state[secondName] = secondDist;
+      base.mechanics.push({ model: base.mechanics[0].model, topic: secondName, params: { ...base.mechanics[0].params } });
+      simSecondTopicName = secondName;
+    }
+  }
+
   return base;
 }
 
@@ -1131,7 +1162,11 @@ document.getElementById("s-run").addEventListener("click", async () => {
       return;
     }
     simLastData = data;
-    document.getElementById("s-interpretation").textContent = SIM_KINDS[simKindKey].interpret(data);
+    let interpretation = SIM_KINDS[simKindKey].interpret(data);
+    if (simSecondTopicName && data[`std_${simSecondTopicName}`]) {
+      interpretation += " " + simInterpretSecondTopic(data, simSecondTopicName);
+    }
+    document.getElementById("s-interpretation").textContent = interpretation;
     simRenderChart(data);
     simRenderProjection();
     document.getElementById("s-result").classList.remove("hidden");
@@ -1142,39 +1177,87 @@ document.getElementById("s-run").addEventListener("click", async () => {
   }
 });
 
+// Generische, an SIM_KINDS.interpret angelehnte Einschaetzung fuer ein zweites
+// (optionales, korreliertes) Thema - bewusst grob (Konvergenz ja/nein), keine
+// kind-spezifische Formulierung wie beim ersten Thema.
+function simInterpretSecondTopic(data, topicName) {
+  const std = data[`std_${topicName}`];
+  const mean = data[`mean_${topicName}`];
+  const lastStd = std[std.length - 1];
+  const lastMean = mean[mean.length - 1];
+  let sentence = `Beim zweiten Thema ("${topicName}") `;
+  if (lastStd < 0.15) sentence += "einigt sich die Gruppe ebenfalls weitgehend, ";
+  else if (lastStd > 0.4) sentence += "bleibt die Gruppe ebenfalls deutlich gespalten, ";
+  else sentence += "bildet sich eine Tendenz, aber kein einheitliches Bild, ";
+  sentence += `bei einem mittleren Wert von ${lastMean.toFixed(2)}.`;
+  return sentence;
+}
+
 function simRenderChart(data) {
   const ctx = document.getElementById("s-chart");
   if (simChart) simChart.destroy();
-  const datasets = [
-    {
-      label: "Mittlerer Wert",
-      data: data.mean_opinion,
-      borderColor: "#2f6f4f",
+  const topics = simSecondTopicName ? ["opinion", simSecondTopicName] : ["opinion"];
+  const datasets = [];
+  topics.forEach((topic, i) => {
+    const mean = data[`mean_${topic}`];
+    if (!mean) return;
+    const color = TOPIC_COLORS[i % TOPIC_COLORS.length];
+    datasets.push({
+      label: topics.length > 1 ? `Mittelwert: ${topic}` : "Mittlerer Wert",
+      data: mean,
+      borderColor: color,
       backgroundColor: "transparent",
       pointRadius: 0,
       tension: 0.15,
-    },
-  ];
-  if (data.mean_opinion_max) {
-    datasets.push(
-      {
-        label: "max. Wiederholungslauf",
-        data: data.mean_opinion_max,
-        borderColor: "rgba(47,111,79,0.25)",
-        backgroundColor: "transparent",
-        pointRadius: 0,
-        borderDash: [4, 4],
-      },
-      {
-        label: "min. Wiederholungslauf",
-        data: data.mean_opinion_min,
-        borderColor: "rgba(47,111,79,0.25)",
-        backgroundColor: "transparent",
-        pointRadius: 0,
-        borderDash: [4, 4],
-      }
-    );
-  }
+    });
+    // Bandbreite ueber die Wiederholungslaeufe (mean_<topic>_min/max) gibt es
+    // serverseitig bisher nur fuer "opinion" (webapp.py) - fuer das zweite
+    // Thema zeigen wir stattdessen die Streuung ZWISCHEN Agenten (std_<topic>).
+    if (topic === "opinion" && data.mean_opinion_max) {
+      datasets.push(
+        {
+          label: "max. Wiederholungslauf",
+          data: data.mean_opinion_max,
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        },
+        {
+          label: "min. Wiederholungslauf",
+          data: data.mean_opinion_min,
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        }
+      );
+    } else if (data[`std_${topic}`]) {
+      const std = data[`std_${topic}`];
+      datasets.push(
+        {
+          label: `+1 Streuung: ${topic}`,
+          data: mean.map((m, j) => m + std[j]),
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        },
+        {
+          label: `-1 Streuung: ${topic}`,
+          data: mean.map((m, j) => m - std[j]),
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        }
+      );
+    }
+  });
   simChart = new Chart(ctx, {
     type: "line",
     data: { labels: data.ticks, datasets },

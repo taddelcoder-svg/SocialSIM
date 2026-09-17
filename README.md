@@ -46,6 +46,12 @@ Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben r
   n&auml;chster Abschnitt) - erweiterbar durch neue Eintr&auml;ge in
   `data_sources.py` (Distribution + Zitat + `applies_to`); je Kategorie
   k&ouml;nnen mehrere Quellen zur Auswahl stehen.
+- **Zweites, korreliertes Thema (optional)**: unter "Weitere Einstellungen"
+  eine Checkbox, die ein zweites benanntes Thema mit eigenem Prozentwert und
+  einem Korrelations-Regler (0 = unabh&auml;ngig, 1 = fast identisch zum ersten
+  Thema) hinzuf&uuml;gt - nutzt intern dieselbe Mechanik wie Thema 1 und
+  `correlated_with` (siehe "Mehrdimensionale Meinungen" unten). Ergebnis-Chart
+  und -Text zeigen dann beide Themen.
 - **Zukunftsprojektion**: nach jeder Simulation ein Feld "1 Zeitschritt &asymp;
   X Tage/Wochen/Monate" - rechnet die Simulationsl&auml;nge in eine reale
   Zeitspanne um und nennt die Bandbreite (nicht nur den Mittelwert!) &uuml;ber
