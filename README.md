@@ -53,10 +53,18 @@ Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben r
   eine modellbasierte Spekulation und keine Vorhersage ist (Framework-Abschnitt 1
   & 8). Rein clientseitig aus der schon geladenen Antwort berechnet, kein
   erneuter Simulationslauf n&ouml;tig, wenn nur die Zeiteinheit ge&auml;ndert wird.
-- **Erweitert**: das volle Formular (Population, Netzwerk, Ausgangszustand,
+- **Erweitert**: das volle Formular (Population, Netzwerk, Meinungsthemen,
   mehrere Mechaniken, Ereignisse, Kalibrierung, Sensitivitaetsanalyse). "Aus
   dem Wizard heraus oeffnen" uebernimmt die gerade simulierte Konfiguration
-  1:1 in dieses Formular zum Weiterschrauben.
+  1:1 in dieses Formular zum Weiterschrauben. Der Abschnitt "Meinungsthemen"
+  erlaubt beliebig viele benannte Topics per "+ Thema" (siehe naechster
+  Abschnitt) - jedes mit eigener Verteilung/Quelle und optional per Checkbox
+  "mit einem anderen Thema korreliert" an ein bereits vorhandenes Thema
+  gekoppelt (Ziel-Dropdown + Staerke 0-1). Jede Mechanik-Zeile bekommt ein
+  "Thema"-Dropdown, das automatisch alle aktuell definierten Themen anbietet,
+  damit unterschiedliche Mechaniken gezielt unterschiedliche Achsen bewegen
+  koennen. Ergebnis-Chart und -Zusammenfassung zeigen dann jedes Thema als
+  eigene Linie/Zeile statt nur "opinion".
 
 Beide Modi rufen dieselben `/api/*`-Endpunkte auf, die intern denselben Code
 wie die CLI nutzen (`run_scenario`, `check_calibration`, `run_sensitivity`) -

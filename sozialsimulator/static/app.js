@@ -163,16 +163,6 @@ function readDistributionParams(container, kind) {
   return readFields(container, DISTRIBUTION_FIELDS[kind]);
 }
 
-function readDistribution(kindSelect, paramsContainer) {
-  const kind = kindSelect.value;
-  return { kind, params: readDistributionParams(paramsContainer, kind) };
-}
-
-function setDistribution(kindSelect, paramsContainer, dist) {
-  kindSelect.value = dist.kind;
-  renderDistributionParams(paramsContainer, dist.kind, paramsContainer.id, dist.params || {});
-}
-
 // ---- Netzwerk ----
 const networkTypeSelect = document.getElementById("network-type");
 const networkParamsEl = document.getElementById("network-params");
@@ -182,13 +172,126 @@ function refreshNetworkFields(values = {}) {
 networkTypeSelect.addEventListener("change", () => refreshNetworkFields());
 refreshNetworkFields();
 
-// ---- Ausgangszustand ----
-const opinionKindSelect = document.getElementById("opinion-kind");
-const opinionParamsEl = document.getElementById("opinion-params");
-opinionKindSelect.addEventListener("change", () =>
-  renderDistributionParams(opinionParamsEl, opinionKindSelect.value, "op")
-);
-renderDistributionParams(opinionParamsEl, opinionKindSelect.value, "op");
+// ---- Ausgangszustand: ein oder mehrere Meinungsthemen ----
+// Ein Thema = ein Eintrag in initial_state (siehe config.py Distribution). Mehrere
+// Themen ermoeglichen mehrdimensionale Meinungen; ein Thema kann optional mit einem
+// anderen "correlated_with" sein (eine Ebene, siehe model.py._sample_initial_state).
+const topicList = document.getElementById("topic-list");
+
+function currentTopicNames() {
+  return [...topicList.querySelectorAll(".topic-row")]
+    .map((row) => row.querySelector(".topic-name").value.trim())
+    .filter(Boolean);
+}
+
+function refreshTopicCorrelationOptions() {
+  const names = currentTopicNames();
+  topicList.querySelectorAll(".topic-row").forEach((row) => {
+    const selfName = row.querySelector(".topic-name").value.trim();
+    const target = row.querySelector(".topic-corr-target");
+    const desired = row.dataset.corrTarget || target.value;
+    const others = names.filter((n) => n !== selfName);
+    target.innerHTML = others.map((n) => `<option value="${n}">${n}</option>`).join("");
+    if (others.includes(desired)) {
+      target.value = desired;
+      delete row.dataset.corrTarget;
+    }
+  });
+}
+
+function addTopicRow(name = "opinion", dist = { kind: "uniform", params: { min: -1, max: 1 } }) {
+  const rowId = `topic-${rowCounter++}`;
+  const row = document.createElement("div");
+  row.className = "dynamic-row topic-row";
+  row.dataset.corrTarget = dist.correlated_with ? dist.correlated_with.topic : "";
+  row.innerHTML = `
+    <button type="button" class="remove-row" title="entfernen">&times;</button>
+    <div class="field-group">
+      <label>Thema (Name)</label>
+      <input type="text" class="topic-name" value="${name}" placeholder="z.B. klima, energiepolitik" />
+    </div>
+    <div class="field-group">
+      <label>Verteilung</label>
+      <select class="topic-kind">
+        <option value="uniform">Gleichverteilt (uniform)</option>
+        <option value="normal">Normalverteilt (normal)</option>
+        <option value="beta">Beta</option>
+        <option value="choice">Diskret (choice)</option>
+        <option value="constant">Konstant</option>
+        <option value="histogram">Histogramm (reale Bins)</option>
+      </select>
+    </div>
+    <div class="row-fields topic-params"></div>
+    <div class="field-group">
+      <label>Quelle (optional, z.B. "WVS 2022")</label>
+      <input type="text" class="topic-source" placeholder="woher stammt dieser Ausgangswert?" />
+    </div>
+    <div class="field-group topic-corr-group">
+      <label><input type="checkbox" class="topic-corr-toggle" /> mit einem anderen Thema korreliert</label>
+      <div class="row-fields topic-corr-fields hidden">
+        <select class="topic-corr-target"></select>
+        <input type="number" class="topic-corr-strength" min="0" max="1" step="0.05" placeholder="Staerke (0-1)" />
+      </div>
+    </div>
+  `;
+  topicList.appendChild(row);
+
+  const nameInput = row.querySelector(".topic-name");
+  const kindSelect = row.querySelector(".topic-kind");
+  const paramsEl = row.querySelector(".topic-params");
+  kindSelect.value = dist.kind;
+  renderDistributionParams(paramsEl, kindSelect.value, rowId, dist.params || {});
+  row.querySelector(".topic-source").value = dist.source || "";
+  kindSelect.addEventListener("change", () => renderDistributionParams(paramsEl, kindSelect.value, rowId));
+
+  const corrToggle = row.querySelector(".topic-corr-toggle");
+  const corrFields = row.querySelector(".topic-corr-fields");
+  const corrStrength = row.querySelector(".topic-corr-strength");
+  corrStrength.value = dist.correlated_with ? dist.correlated_with.strength ?? 0.5 : 0.5;
+  if (dist.correlated_with) {
+    corrToggle.checked = true;
+    corrFields.classList.remove("hidden");
+  }
+  corrToggle.addEventListener("change", () => corrFields.classList.toggle("hidden", !corrToggle.checked));
+
+  nameInput.addEventListener("input", () => {
+    refreshTopicCorrelationOptions();
+    refreshMechanicTopicOptions();
+  });
+  row.querySelector(".remove-row").addEventListener("click", () => {
+    if (topicList.querySelectorAll(".topic-row").length > 1) {
+      row.remove();
+      refreshTopicCorrelationOptions();
+      refreshMechanicTopicOptions();
+    }
+  });
+
+  refreshTopicCorrelationOptions();
+  refreshMechanicTopicOptions();
+}
+
+document.getElementById("add-topic").addEventListener("click", () => addTopicRow(`thema${topicList.querySelectorAll(".topic-row").length + 1}`));
+
+function readTopics() {
+  const out = {};
+  topicList.querySelectorAll(".topic-row").forEach((row) => {
+    const name = row.querySelector(".topic-name").value.trim();
+    if (!name) return;
+    const kindSelect = row.querySelector(".topic-kind");
+    const paramsEl = row.querySelector(".topic-params");
+    const dist = { kind: kindSelect.value, params: readDistributionParams(paramsEl, kindSelect.value) };
+    const source = row.querySelector(".topic-source").value.trim();
+    if (source) dist.source = source;
+    const corrToggle = row.querySelector(".topic-corr-toggle");
+    if (corrToggle.checked) {
+      const target = row.querySelector(".topic-corr-target").value;
+      const strength = parseFloat(row.querySelector(".topic-corr-strength").value);
+      if (target) dist.correlated_with = { topic: target, strength: isNaN(strength) ? 0.5 : strength };
+    }
+    out[name] = dist;
+  });
+  return out;
+}
 
 // ---- Mechanik (eine oder mehrere, in Ausfuehrungsreihenfolge) ----
 const MECHANIC_LABELS = {
@@ -198,10 +301,25 @@ const MECHANIC_LABELS = {
 };
 const mechanicList = document.getElementById("mechanic-list");
 
-function addMechanicRow(model = "bounded_confidence", params = {}) {
+function refreshMechanicTopicOptions() {
+  const names = currentTopicNames();
+  mechanicList.querySelectorAll(".dynamic-row").forEach((row) => {
+    const select = row.querySelector(".mech-topic");
+    if (!select) return;
+    const desired = row.dataset.topic || select.value;
+    select.innerHTML = names.map((n) => `<option value="${n}">${n}</option>`).join("");
+    if (names.includes(desired)) {
+      select.value = desired;
+      delete row.dataset.topic;
+    }
+  });
+}
+
+function addMechanicRow(model = "bounded_confidence", params = {}, topic = "opinion") {
   const rowId = `mech-${rowCounter++}`;
   const row = document.createElement("div");
   row.className = "dynamic-row";
+  row.dataset.topic = topic;
   row.innerHTML = `
     <button type="button" class="remove-row" title="entfernen">&times;</button>
     <div class="field-group">
@@ -209,6 +327,10 @@ function addMechanicRow(model = "bounded_confidence", params = {}) {
       <select class="mech-model">
         ${Object.entries(MECHANIC_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}
       </select>
+    </div>
+    <div class="field-group">
+      <label>Thema</label>
+      <select class="mech-topic"></select>
     </div>
     <div class="row-fields mech-params"></div>
   `;
@@ -221,6 +343,7 @@ function addMechanicRow(model = "bounded_confidence", params = {}) {
   row.querySelector(".remove-row").addEventListener("click", () => {
     if (mechanicList.querySelectorAll(".dynamic-row").length > 1) row.remove();
   });
+  refreshMechanicTopicOptions();
 }
 
 document.getElementById("add-mechanic").addEventListener("click", () => addMechanicRow());
@@ -230,7 +353,12 @@ function readMechanics() {
   mechanicList.querySelectorAll(".dynamic-row").forEach((row) => {
     const modelSelect = row.querySelector(".mech-model");
     const paramsEl = row.querySelector(".mech-params");
-    out.push({ model: modelSelect.value, params: readFields(paramsEl, MECHANIC_FIELDS[modelSelect.value]) });
+    const topicSelect = row.querySelector(".mech-topic");
+    out.push({
+      model: modelSelect.value,
+      topic: topicSelect && topicSelect.value ? topicSelect.value : "opinion",
+      params: readFields(paramsEl, MECHANIC_FIELDS[modelSelect.value]),
+    });
   });
   return out;
 }
@@ -339,14 +467,7 @@ function buildConfig() {
       attributes: readAttributes(),
     },
     network: { type: networkTypeSelect.value, params: readFields(networkParamsEl, NETWORK_FIELDS[networkTypeSelect.value]) },
-    initial_state: {
-      opinion: {
-        ...readDistribution(opinionKindSelect, opinionParamsEl),
-        ...(document.getElementById("opinion-source").value
-          ? { source: document.getElementById("opinion-source").value }
-          : {}),
-      },
-    },
+    initial_state: readTopics(),
     mechanics: readMechanics(),
     events: readEvents(),
     time: {
@@ -365,13 +486,12 @@ function loadConfigIntoForm(config) {
   networkTypeSelect.value = config.network.type;
   refreshNetworkFields(config.network.params || {});
 
-  const opinion = config.initial_state.opinion;
-  setDistribution(opinionKindSelect, opinionParamsEl, opinion);
-  document.getElementById("opinion-source").value = opinion.source || "";
+  topicList.innerHTML = "";
+  Object.entries(config.initial_state || {}).forEach(([name, dist]) => addTopicRow(name, dist));
 
   mechanicList.innerHTML = "";
   const mechanics = Array.isArray(config.mechanics) ? config.mechanics : [config.mechanics];
-  mechanics.forEach((m) => addMechanicRow(m.model, m.params || {}));
+  mechanics.forEach((m) => addMechanicRow(m.model, m.params || {}, m.topic || "opinion"));
 
   eventList.innerHTML = "";
   (config.events || []).forEach((evt) => addEventRow(evt.tick, evt.type, evt.params || {}));
@@ -448,10 +568,17 @@ document.getElementById("run-button").addEventListener("click", async () => {
       return;
     }
     renderChart(data);
+    const topics = data.topics && data.topics.length ? data.topics : ["opinion"];
+    const spreadText = topics
+      .map((t) => {
+        const std = data[`std_${t}`];
+        return std ? `${t}: ${std[0].toFixed(3)} -> ${std[std.length - 1].toFixed(3)}` : null;
+      })
+      .filter(Boolean)
+      .join(" | ");
     resultSummary.textContent =
       `${data.population_size} Agenten, Mechanik "${data.mechanic}", ` +
-      `gemittelt ueber ${data.runs} Lauf/Laeufe. ` +
-      `Meinungsstreuung: ${data.std_opinion[0].toFixed(3)} -> ${data.std_opinion[data.std_opinion.length - 1].toFixed(3)}.`;
+      `gemittelt ueber ${data.runs} Lauf/Laeufe. Meinungsstreuung (${spreadText}).`;
   } catch (err) {
     showError(`Verbindung zum Server fehlgeschlagen: ${err.message}`);
     resultSummary.textContent = "Simulation fehlgeschlagen.";
@@ -620,42 +747,55 @@ function renderSensitivityChart(data, parameter) {
   });
 }
 
+// Eine Farbe pro Thema, damit mehrdimensionale Szenarien optisch unterscheidbar bleiben.
+const TOPIC_COLORS = ["#2f6f4f", "#7a3e9d", "#b0563a", "#2a6f8f", "#8f8f2a"];
+
 function renderChart(data) {
   const ctx = document.getElementById("result-chart");
-  const upper = data.mean_opinion.map((m, i) => m + data.std_opinion[i]);
-  const lower = data.mean_opinion.map((m, i) => m - data.std_opinion[i]);
+  const topics = data.topics && data.topics.length ? data.topics : ["opinion"];
+  const datasets = [];
+  topics.forEach((topic, i) => {
+    const mean = data[`mean_${topic}`];
+    const std = data[`std_${topic}`];
+    if (!mean) return;
+    const color = TOPIC_COLORS[i % TOPIC_COLORS.length];
+    datasets.push({
+      label: topics.length > 1 ? `Mittelwert: ${topic}` : "Mittlere Meinung",
+      data: mean,
+      borderColor: color,
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      tension: 0.15,
+    });
+    if (std) {
+      const upper = mean.map((m, j) => m + std[j]);
+      const lower = mean.map((m, j) => m - std[j]);
+      datasets.push(
+        {
+          label: `+1 Streuung${topics.length > 1 ? `: ${topic}` : ""}`,
+          data: upper,
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        },
+        {
+          label: `-1 Streuung${topics.length > 1 ? `: ${topic}` : ""}`,
+          data: lower,
+          borderColor: color,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderDash: [4, 4],
+          borderWidth: 1,
+        }
+      );
+    }
+  });
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: "line",
-    data: {
-      labels: data.ticks,
-      datasets: [
-        {
-          label: "Mittlere Meinung",
-          data: data.mean_opinion,
-          borderColor: "#2f6f4f",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          tension: 0.15,
-        },
-        {
-          label: "+1 Streuung",
-          data: upper,
-          borderColor: "rgba(47,111,79,0.25)",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderDash: [4, 4],
-        },
-        {
-          label: "-1 Streuung",
-          data: lower,
-          borderColor: "rgba(47,111,79,0.25)",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderDash: [4, 4],
-        },
-      ],
-    },
+    data: { labels: data.ticks, datasets },
     options: {
       responsive: true,
       scales: { x: { title: { display: true, text: "Zeitschritt" } } },
@@ -663,7 +803,8 @@ function renderChart(data) {
   });
 }
 
-// Initialzustand: eine Mechanik und ein Attributbeispiel vorschlagen
+// Initialzustand: ein Thema, eine Mechanik und ein Attributbeispiel vorschlagen
+addTopicRow();
 addMechanicRow();
 addAttributeRow("threshold", { kind: "beta", params: { a: 2, b: 5, min: 0, max: 1 } });
 

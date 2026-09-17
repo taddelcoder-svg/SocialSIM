@@ -135,28 +135,15 @@
     </fieldset>
 
     <fieldset>
-      <legend>3. Ausgangszustand (Meinung)</legend>
-      <div class="field-group">
-        <label for="opinion-kind">Verteilung</label>
-        <select id="opinion-kind">
-          <option value="uniform">Gleichverteilt (uniform)</option>
-          <option value="normal">Normalverteilt (normal)</option>
-          <option value="beta">Beta</option>
-          <option value="choice">Diskret (choice)</option>
-          <option value="constant">Konstant</option>
-          <option value="histogram">Histogramm (reale Bins)</option>
-        </select>
-      </div>
-      <div id="opinion-params" class="dynamic-fields"></div>
-      <div class="field-group">
-        <label for="opinion-source">Quelle (optional, z.B. "WVS 2022")</label>
-        <input id="opinion-source" type="text" placeholder="woher stammt dieser Ausgangswert?" />
-      </div>
+      <legend>3. Meinungsthemen (Ausgangszustand)</legend>
+      <p class="muted">Ein Thema reicht f&uuml;r die meisten Szenarien. Mehrere Themen erlauben mehrdimensionale Meinungen (z.B. "klima" und "energiepolitik"), die optional korreliert sein k&ouml;nnen - siehe <a href="README.md#mehrdimensionale-meinungen" target="_blank" rel="noopener">README</a>.</p>
+      <div id="topic-list" class="dynamic-list"></div>
+      <button type="button" id="add-topic" class="secondary">+ Thema</button>
     </fieldset>
 
     <fieldset>
       <legend>4. Mechanik (Verhaltensmodell)</legend>
-      <p class="muted">Mehrere Mechaniken laufen pro Zeitschritt in dieser Reihenfolge - jede sieht bereits das Ergebnis der vorherigen.</p>
+      <p class="muted">Mehrere Mechaniken laufen pro Zeitschritt in dieser Reihenfolge - jede sieht bereits das Ergebnis der vorherigen. Bei mehreren Themen legt "Thema" fest, welche Meinungsachse eine Mechanik bewegt.</p>
       <div id="mechanic-list" class="dynamic-list"></div>
       <button type="button" id="add-mechanic" class="secondary">+ Mechanik</button>
     </fieldset>

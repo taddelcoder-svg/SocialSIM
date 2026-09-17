@@ -183,6 +183,11 @@ input, select {
   gap: 8px;
 }
 
+.topic-corr-group { margin-top: 4px; }
+.topic-corr-group label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text); }
+.topic-corr-group label input[type="checkbox"] { width: auto; }
+.topic-corr-fields { margin-top: 6px; }
+
 .hist-bins { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 
 .hist-bin-row {
