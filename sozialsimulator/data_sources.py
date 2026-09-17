@@ -101,6 +101,58 @@ DATA_SOURCES: list[dict] = [
         },
     },
     {
+        "id": "eurobarometer_inflation_concern_de_2024",
+        "label": "Sorge um steigende Preise/Inflation (Deutschland, 2024)",
+        "applies_to": "opinion_continuous",
+        "citation": (
+            "Eurobarometer Standard 2024: 29% nennen steigende Preise/Inflation/Lebenshaltungskosten "
+            "als wichtigstes Problem Deutschlands (Mehrfachauswahl unter mehreren Problemfeldern, keine "
+            "Intensitaetsskala wie bei der Klimafrage) - hier vereinfacht als Zwei-Bin-Naeherung auf "
+            "-1 (nicht das wichtigste Problem) bis +1 (wichtigstes Problem) abgebildet"
+        ),
+        "distribution": {
+            "kind": "histogram",
+            "params": {
+                "bins": [
+                    {"min": -1.0, "max": 0.0, "weight": 0.71},
+                    {"min": 0.0, "max": 1.0, "weight": 0.29},
+                ]
+            },
+        },
+    },
+    {
+        "id": "yougov_ai_concern_de_2024",
+        "label": "Sorge vor der wachsenden Bedeutung von KI im Alltag (Deutschland, 2024)",
+        "applies_to": "opinion_continuous",
+        "citation": (
+            "YouGov (2024), 15-Laender-Vergleich: 37% der Deutschen sind skeptisch/besorgt gegenueber "
+            "der wachsenden Bedeutung von KI im Alltag der naechsten 10 Jahre - im Vergleich "
+            "ueberdurchschnittlich negativ; hier auf -1 (unbesorgt) bis +1 (besorgt) abgebildet"
+        ),
+        "distribution": {
+            "kind": "histogram",
+            "params": {
+                "bins": [
+                    {"min": -1.0, "max": 0.0, "weight": 0.63},
+                    {"min": 0.0, "max": 1.0, "weight": 0.37},
+                ]
+            },
+        },
+    },
+    {
+        "id": "kba_elektroauto_bestand_de_2024",
+        "label": "Elektroauto-Anteil am Pkw-Bestand (Deutschland, 2024)",
+        "applies_to": "initial_adoption",
+        "citation": (
+            "Kraftfahrt-Bundesamt (KBA), Bestand 2024: 3.3% aller zugelassenen Pkw in Deutschland "
+            "sind rein batterieelektrisch (+0.4 Prozentpunkte gegenueber 2023)"
+        ),
+        "distribution": {
+            "kind": "choice",
+            "params": {"options": [0.0, 1.0], "weights": [0.967, 0.033]},
+        },
+    },
+    {
         "id": "reuters_trust_social_media_2026",
         "label": "Grundvertrauen in Nachrichten auf sozialen Medien (weltweit, 2026)",
         "applies_to": "trust_media",

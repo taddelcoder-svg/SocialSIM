@@ -42,7 +42,10 @@ Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben r
   Schätzung, damit reale Daten nie versehentlich auf ein unpassendes Thema
   übertragen werden. "Simulieren" antwortet als Klartext-Satz ("Die Gruppe
   bleibt gespalten...") statt mit Rohzahlen.
-- **Datenquellen-Katalog** (`/api/data-sources`, sechs Eintr&auml;ge, siehe
+- **Datenquellen-Katalog** (`/api/data-sources`, neun Eintr&auml;ge zu
+  Klimawandel, Innovationsverbreitung, Homeoffice, Impfbereitschaft,
+  Online-Beteiligung, Medienvertrauen, Inflationssorge, KI-Sorge und
+  Elektroauto-Adoption, siehe
   n&auml;chster Abschnitt) - erweiterbar durch neue Eintr&auml;ge in
   `data_sources.py` (Distribution + Zitat + `applies_to`); je Kategorie
   k&ouml;nnen mehrere Quellen zur Auswahl stehen.
@@ -72,9 +75,36 @@ Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben r
   koennen. Ergebnis-Chart und -Zusammenfassung zeigen dann jedes Thema als
   eigene Linie/Zeile statt nur "opinion".
 
-Beide Modi rufen dieselben `/api/*`-Endpunkte auf, die intern denselben Code
-wie die CLI nutzen (`run_scenario`, `check_calibration`, `run_sensitivity`) -
-keine Logik ist in JavaScript dupliziert.
+- **&#127760; Welt**: aus beiden Modi per "Als Welt ansehen" erreichbar - zeigt
+  das soziale Netzwerk als animiertes Punktenetz (ein Punkt pro Agent, Linien =
+  Netzwerkkanten), das sich Tick fuer Tick faerbt und bewegt statt nur ein
+  Endchart zu zeigen (siehe naechster Abschnitt).
+
+Beide Formulare rufen dieselben `/api/*`-Endpunkte auf, die intern denselben
+Code wie die CLI nutzen (`run_scenario`, `check_calibration`, `run_sensitivity`,
+`run_visual`) - keine Logik ist in JavaScript dupliziert.
+
+## Welt-Ansicht (animiertes Netzwerk)
+
+`/api/run_visual` (siehe `sozialsimulator/visual.py`) fuehrt **einen einzelnen**
+Simulationslauf aus (`time.runs` wird hier ignoriert - eine Animation ueber
+gemittelte Laeufe ergibt keinen Sinn) und liefert pro Zeitschritt eine
+Momentaufnahme der Meinungswerte jedes Agenten, dazu eine feste, mit dem
+Szenario-Seed reproduzierbare Netzwerk-Layout-Position je Knoten
+(`networkx.spring_layout`). Die Rahmen-UI zeichnet das als Canvas: Punktfarbe
+= aktueller Wert (blau niedrig/ablehnend, grau neutral, rot hoch/zustimmend),
+Linien = Netzwerkkanten. Abspielen/Pause, ein Scrubber fuer einzelne
+Zeitschritte und Hover auf einen Punkt (Agent-ID + Wert je Thema) erlauben ein
+Worldbox-artiges Beobachten der Dynamik. Bei mehreren Meinungsthemen
+(`initial_state` mit mehr als einem Eintrag) waehlt ein Dropdown, welches
+Thema eingefaerbt wird.
+
+Bewusst noch nicht umgesetzt (naechste Ausbaustufe, siehe `KONZEPT.md`
+Abschnitt 10 "Noch offen"): Eingriffe waehrend des Abspielens (z.B. per Klick
+die Meinung eines Agenten aendern) und freies Platzieren von Agenten-Gruppen
+vor dem Start. Beides braucht ein zustandsbehaftetes Simulationsmodell im
+Backend (aktuell ist jeder API-Aufruf zustandslos: Config rein, fertiges
+Ergebnis raus) und ist damit ein groesserer naechster Schritt.
 
 Falls `OpenBLAS error: Memory allocation still failed` beim Start erscheint:
 `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m sozialsimulator.webapp`
@@ -147,6 +177,9 @@ waechst - aktuell:
 | Destatis/Eurostat, Homeoffice-Nutzung Deutschland 2023 | `initial_adoption` | 23.5% |
 | Umfrage August 2021, Impfbereitschaft COVID-19 Deutschland | `initial_adoption` | 83% |
 | Nielsen (2006), 90-9-1-Regel | `credibility` | 90/9/1% |
+| Eurobarometer Standard 2024, Inflationssorge Deutschland | `opinion_continuous` | 29% |
+| YouGov (2024), Sorge vor KI im Alltag (15-Laender-Vergleich) | `opinion_continuous` | 37% |
+| KBA-Bestand 2024, Elektroauto-Anteil am Pkw-Bestand Deutschland | `initial_adoption` | 3.3% |
 | Reuters Institute Digital News Report 2026, Vertrauen in News auf Social Media | `trust_media` | 22% |
 
 Neue Quelle hinzufuegen: ein Dict mit `id`, `label`, `applies_to`, `citation`
@@ -191,7 +224,8 @@ Abschnitt "Sensitivitätsanalyse" im Formular).
 - `sozialsimulator/events.py` – externe Ereignisse zu festen Zeitschritten
 - `sozialsimulator/model.py` – verbindet alles zu einem lauffähigen Mesa-Modell
 - `sozialsimulator/run.py` – CLI: Szenario laden, mehrfach ausführen (`time.runs`), Ergebnis als CSV
-- `sozialsimulator/webapp.py` + `sozialsimulator/static/` – Rahmen-UI (gefuehrter Wizard + erweitertes Formular): `/api/run`, `/api/calibrate`, `/api/sensitivity`, `/api/data-sources` fuehren denselben Code wie die CLI aus
+- `sozialsimulator/webapp.py` + `sozialsimulator/static/` – Rahmen-UI (gefuehrter Wizard + erweitertes Formular + Welt-Ansicht): `/api/run`, `/api/calibrate`, `/api/sensitivity`, `/api/data-sources`, `/api/run_visual` fuehren denselben Code wie die CLI aus
+- `sozialsimulator/visual.py` – Momentaufnahmen (Meinungswerte je Agent + Tick, Netzwerk-Layout) fuer die animierte Welt-Ansicht
 - `sozialsimulator/data_sources.py` – Katalog realer, zitierter Verteilungen fuer eigene Szenarien (Framework-Abschnitt 6)
 - `sozialsimulator/paths.py` – Dotted-Path-Zugriff auf ein Config-Dict (fuer die Sensitivitaetsanalyse)
 - `sozialsimulator/calibration.py` – vergleicht gezogene Stichproben mit den Zielgewichten der Config (Framework-Abschnitt 8)

@@ -249,6 +249,39 @@ button.secondary:hover { background: #f0f1f3; }
 .calib-status-ok { color: var(--accent); font-weight: 600; }
 .calib-status-bad { color: var(--danger); font-weight: 600; }
 
+/* Welt-Ansicht (Worldbox-artiges Live-Beobachten des Netzwerks) */
+.world-panel { grid-column: 1 / -1; }
+.world-header h2 { margin: 0 0 6px; }
+.world-stage {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f1420;
+  overflow: hidden;
+}
+#world-canvas { display: block; width: 100%; height: auto; cursor: pointer; }
+.world-tooltip {
+  position: absolute;
+  background: rgba(20, 24, 34, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  pointer-events: none;
+  max-width: 220px;
+  line-height: 1.4;
+}
+.world-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.world-controls input[type="range"] { flex: 1; min-width: 160px; }
+.world-topic-group { margin-bottom: 0; min-width: 140px; }
+#world-tick-label { min-width: 70px; }
+
 pre#config-preview {
   background: #f0f1f3;
   border-radius: 6px;

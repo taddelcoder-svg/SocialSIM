@@ -93,7 +93,7 @@ Diese Module sind bewusst **kombinierbar**: z.B. Homophilie bestimmt das Netzwer
 
 **Im Prototyp bereits konkret eingebunden** (statt Platzhalter, siehe `scenarios/*.json` im Code): Destatis-Altersverteilung Deutschland 2023, Special Eurobarometer 538 (Klimawandel, Mai 2023) für die Startmeinung, Rogers' Adopterkategorien für Schwellenwerte, Nielsens 90-9-1-Regel für Glaubwürdigkeitsgewichte, sowie Dunbars Netzwerk-Schichten für die Kontaktzahl. Wo keine passende reale Verteilung existiert, steht das explizit als "Annahme" im Quellenfeld.
 
-Der Katalog wächst laufend weiter (`data_sources.py`, aktuell sechs Einträge) – u.a. um Destatis/Eurostat-Zahlen zur Homeoffice-Nutzung (23.5%, 2023), eine Umfrage zur COVID-19-Impfbereitschaft (83%, August 2021) und den Reuters Institute Digital News Report zum Vertrauen in Nachrichten auf sozialen Medien (22%, 2026).
+Der Katalog wächst laufend weiter (`data_sources.py`, aktuell neun Einträge) – u.a. um Destatis/Eurostat-Zahlen zur Homeoffice-Nutzung (23.5%, 2023), eine Umfrage zur COVID-19-Impfbereitschaft (83%, August 2021), den Reuters Institute Digital News Report zum Vertrauen in Nachrichten auf sozialen Medien (22%, 2026), sowie erste Themen jenseits des Klimawandels: Eurobarometer-Inflationssorge (29%, 2024), YouGov-Sorge vor KI im Alltag (37%, 2024) und den KBA-Elektroauto-Bestandsanteil (3.3%, 2024).
 
 **Zukunftsprojektion statt Vorhersage:** Die Rahmen-UI rechnet die simulierte Schrittzahl in eine reale Zeitspanne um ("1 Zeitschritt ≈ X Wochen") und nennt am Ende die Bandbreite über die Wiederholungsläufe (nicht nur den Mittelwert) – immer mit dem Hinweis, dass dies eine modellbasierte Spekulation ist, keine Vorhersage. Das hält sich bewusst an das in Abschnitt 1 formulierte Nicht-Ziel: eine Bandbreite aus tatsächlicher Simulationsstreuung ist etwas anderes als eine erfundene präzise Zahl.
 
@@ -161,17 +161,19 @@ Das Ergebnis ist immer als **Bandbreite plausibler Verläufe** zu kommunizieren,
 1. Konfigurationsschicht (Abschnitt 3) vollständig, inkl. der Verteilung `"histogram"` für reale Bin-Daten (Altersgruppen, Umfrage-Antwortkategorien)
 2. Drei Mechaniken aus Abschnitt 5 – Bounded Confidence, Schwellenwertmodell, DeGroot – austauschbar UND kombinierbar (`mechanics` als Liste, läuft als Pipeline pro Zeitschritt)
 3. Kalibrierung & Sensitivitätsanalyse (Abschnitt 8) als eigene Module plus Rahmen-UI-Bedienelemente
-4. Datenquellen-Katalog (`data_sources.py`, aktuell sechs Einträge) statt einmaliger Platzhalter-Ersetzung – wächst laufend weiter
+4. Datenquellen-Katalog (`data_sources.py`, aktuell neun Einträge) statt einmaliger Platzhalter-Ersetzung – wächst laufend weiter, mittlerweile auch über Klimawandel hinaus (Inflationssorge, KI-Sorge, Elektroauto-Adoption)
 5. Rahmen-UI: von "alle Parameter gleichzeitig" über einen mehrstufigen Wizard zu einem einzigen, vorbelegten Formular mit optionalen Detaileinstellungen (mehrere Iterationen nach Nutzer-Feedback zur Bedienbarkeit)
 6. Zukunftsprojektion: reale Zeitspanne + Bandbreite über Wiederholungsläufe statt einer einzelnen Zahl, mit explizitem Vorhersage-Caveat
 7. Mehrdimensionale Meinungen: `initial_state` kann mehrere benannte Topics tragen (z.B. "klima" + "energiepolitik"), jede Mechanik wählt per `topic`, welche Achse sie bewegt; optionale einfache Korrelation zwischen zwei Topics per `correlated_with`. Siehe `scenarios/beispiel_mehrdimensional.json`. Bestehende Einzelthema-Szenarien laufen unverändert (Topic-Name "opinion" als Standard, `SocialAgent.opinion` als Alias).
+8. Welt-Ansicht (`visual.py`, `/api/run_visual`): ein einzelner Simulationslauf wird als animiertes, farbcodiertes Punktenetz gezeigt (Netzwerk-Layout fest, Farbe = aktueller Meinungswert), mit Abspielen/Pause, Zeitschritt-Scrubber und Hover-Inspektion je Agent – ein erster Schritt in Richtung eines Worldbox-artigen, beobachtbaren "lebendigen" Modells statt eines reinen Ergebnis-Charts.
 
 **Noch offen:**
 
 1. **Dynamische Netzwerke** – Abschnitt 5 nennt "Homophilie-Netzwerkbildung" als Modell; der Prototyp baut Netzwerke bisher nur einmal beim Start. Ein Modell, das Verbindungen während der Simulation neu knüpft oder kappt, fehlt noch.
 2. **Historischer Abgleich** (Abschnitt 8) – bisher nicht umgesetzt: ein Szenario an einem bereits bekannten, dokumentierten realen Verlauf testen, um Face Validity über reine Plausibilität hinaus zu prüfen.
-3. **Geografische Einseitigkeit des Datenkatalogs** – alle sechs Einträge stammen aus Deutschland/EU bzw. global aggregierten Studien; siehe Abschnitt 11.
+3. **Geografische Einseitigkeit des Datenkatalogs** – alle neun Einträge stammen aus Deutschland/EU bzw. global aggregierten Studien; siehe Abschnitt 11.
 4. **Szenarien speichern & vergleichen** – aktuell wird jede Simulation isoliert betrachtet; ein Vergleich mehrerer ganzer Szenario-Varianten nebeneinander existiert nicht (nur Sensitivitätsanalyse für einen einzelnen Parameter).
+5. **Live-Eingriffe & freies Platzieren (Worldbox-Stil)** – die Welt-Ansicht (Punkt 8) zeigt einen bereits fertig durchgerechneten Lauf nur an; sie erlaubt weder, während des Abspielens per Klick in die Simulation einzugreifen (z.B. die Meinung eines Agenten manuell zu ändern), noch, Agenten-Gruppen vor dem Start frei auf einer Fläche zu platzieren statt sie per Formular zu konfigurieren. Beides braucht ein zustandsbehaftetes Simulationsmodell im Backend (aktuell ist jeder API-Aufruf zustandslos) und ist damit ein groesserer naechster Architekturschritt.
 
 Der Prototyp bleibt ein Konfigurations- und Analysewerkzeug, kein Orakel – jeder weitere Ausbauschritt sollte an Abschnitt 8 (Kalibrierung/Sensitivität) und Abschnitt 11 (Grenzen) gemessen werden, bevor er als "fertig" gilt.
 

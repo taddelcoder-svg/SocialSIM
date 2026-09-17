@@ -811,15 +811,18 @@ addAttributeRow("threshold", { kind: "beta", params: { a: 2, b: 5, min: 0, max: 
 // ==================== Modus-Umschalter (Einfach/Erweitert) ====================
 const modeSimpleBtn = document.getElementById("mode-simple-btn");
 const modeAdvancedBtn = document.getElementById("mode-advanced-btn");
+const modeWorldBtn = document.getElementById("mode-world-btn");
 const simpleModeEl = document.getElementById("simple-mode");
 const advancedPanels = document.querySelectorAll(".advanced-only");
+const worldModeEl = document.getElementById("world-mode");
 
 function setMode(mode) {
-  const isSimple = mode === "simple";
-  simpleModeEl.classList.toggle("hidden", !isSimple);
-  advancedPanels.forEach((el) => el.classList.toggle("hidden", isSimple));
-  modeSimpleBtn.classList.toggle("active", isSimple);
-  modeAdvancedBtn.classList.toggle("active", !isSimple);
+  simpleModeEl.classList.toggle("hidden", mode !== "simple");
+  advancedPanels.forEach((el) => el.classList.toggle("hidden", mode !== "advanced"));
+  worldModeEl.classList.toggle("hidden", mode !== "world");
+  modeSimpleBtn.classList.toggle("active", mode === "simple");
+  modeAdvancedBtn.classList.toggle("active", mode === "advanced");
+  modeWorldBtn.classList.toggle("active", mode === "world");
 }
 
 modeSimpleBtn.addEventListener("click", () => setMode("simple"));
@@ -1306,4 +1309,234 @@ document.getElementById("s-open-advanced").addEventListener("click", () => {
 
 simRenderKindCards();
 simApplyKind();
+
+// ==================== Welt-Ansicht: animiertes Netzwerk (Worldbox-Gefuehl) ====================
+// Zeigt einen einzelnen Simulationslauf (time.runs wird hier ignoriert - eine Animation ueber
+// gemittelte Laeufe ergibt keinen Sinn) als sich bewegendes/faerbendes Punktenetz statt nur
+// als Endchart. Positionen kommen aus einem festen Server-Layout (visual.py), damit Knoten beim
+// Abspielen nicht "springen". Farbe = aktueller Meinungswert (blau niedrig/ablehnend, rot hoch/
+// zustimmend). Klick/Hover auf einen Punkt zeigt die Werte dieses Agenten zum aktuellen Tick.
+let worldData = null;
+let worldFrameIndex = 0;
+let worldPlaying = false;
+let worldPlayTimer = null;
+let worldTopic = "opinion";
+let worldReturnMode = "simple";
+
+const worldCanvas = document.getElementById("world-canvas");
+const worldCtx = worldCanvas.getContext("2d");
+const worldTooltip = document.getElementById("world-tooltip");
+const worldScrubber = document.getElementById("world-scrubber");
+const worldTickLabel = document.getElementById("world-tick-label");
+const worldPlayBtn = document.getElementById("world-play-btn");
+const worldTopicSelect = document.getElementById("world-topic-select");
+const worldTopicGroup = document.querySelector(".world-topic-group");
+const worldErrorBox = document.getElementById("world-error");
+
+function worldValueToColor(v, min, max) {
+  if (max <= min) return "rgb(160,170,190)";
+  const t = Math.max(0, Math.min(1, (v - min) / (max - min)));
+  const stops = [
+    { t: 0, c: [66, 133, 244] },
+    { t: 0.5, c: [190, 190, 190] },
+    { t: 1, c: [219, 68, 55] },
+  ];
+  let a = stops[0];
+  let b = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i].t && t <= stops[i + 1].t) {
+      a = stops[i];
+      b = stops[i + 1];
+      break;
+    }
+  }
+  const localT = (t - a.t) / (b.t - a.t || 1);
+  const c = a.c.map((v0, i) => Math.round(v0 + (b.c[i] - v0) * localT));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+function worldScreenPositions() {
+  const xs = worldData.positions.map((p) => p.x);
+  const ys = worldData.positions.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const pad = 30;
+  const w = worldCanvas.width - pad * 2;
+  const h = worldCanvas.height - pad * 2;
+  const spanX = maxX - minX || 1;
+  const spanY = maxY - minY || 1;
+  return worldData.positions.map((p) => ({
+    x: pad + ((p.x - minX) / spanX) * w,
+    y: pad + ((p.y - minY) / spanY) * h,
+  }));
+}
+
+function worldDrawFrame() {
+  if (!worldData) return;
+  const frame = worldData.frames[worldFrameIndex];
+  const values = frame[worldTopic];
+  const allValues = worldData.frames.flatMap((f) => f[worldTopic]);
+  const min = Math.min(...allValues);
+  const max = Math.max(...allValues);
+
+  const screenPositions = worldScreenPositions();
+  worldCtx.fillStyle = "#0f1420";
+  worldCtx.fillRect(0, 0, worldCanvas.width, worldCanvas.height);
+
+  worldCtx.strokeStyle = "rgba(255,255,255,0.08)";
+  worldCtx.lineWidth = 1;
+  worldData.edges.forEach(([a, b]) => {
+    worldCtx.beginPath();
+    worldCtx.moveTo(screenPositions[a].x, screenPositions[a].y);
+    worldCtx.lineTo(screenPositions[b].x, screenPositions[b].y);
+    worldCtx.stroke();
+  });
+
+  const radius = values.length > 400 ? 2.2 : values.length > 150 ? 3.2 : 4.5;
+  screenPositions.forEach((pos, i) => {
+    worldCtx.beginPath();
+    worldCtx.fillStyle = worldValueToColor(values[i], min, max);
+    worldCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    worldCtx.fill();
+  });
+
+  worldTickLabel.textContent = `Tick ${worldFrameIndex}`;
+  worldScrubber.value = worldFrameIndex;
+}
+
+function worldStop() {
+  worldPlaying = false;
+  worldPlayBtn.textContent = "▶ Abspielen";
+  if (worldPlayTimer) {
+    clearInterval(worldPlayTimer);
+    worldPlayTimer = null;
+  }
+}
+
+worldPlayBtn.addEventListener("click", () => {
+  if (!worldData) return;
+  if (worldPlaying) {
+    worldStop();
+    return;
+  }
+  worldPlaying = true;
+  worldPlayBtn.textContent = "⏸ Pause";
+  worldPlayTimer = setInterval(() => {
+    worldFrameIndex += 1;
+    if (worldFrameIndex >= worldData.frames.length) {
+      worldFrameIndex = worldData.frames.length - 1;
+      worldStop();
+    }
+    worldDrawFrame();
+  }, 150);
+});
+
+worldScrubber.addEventListener("input", () => {
+  worldStop();
+  worldFrameIndex = parseInt(worldScrubber.value, 10);
+  worldDrawFrame();
+});
+
+worldTopicSelect.addEventListener("change", () => {
+  worldTopic = worldTopicSelect.value;
+  worldDrawFrame();
+});
+
+worldCanvas.addEventListener("mousemove", (evt) => {
+  if (!worldData) return;
+  const rect = worldCanvas.getBoundingClientRect();
+  const scaleX = worldCanvas.width / rect.width;
+  const scaleY = worldCanvas.height / rect.height;
+  const x = (evt.clientX - rect.left) * scaleX;
+  const y = (evt.clientY - rect.top) * scaleY;
+  const screenPositions = worldScreenPositions();
+  let closest = -1;
+  let closestDist = 12;
+  screenPositions.forEach((pos, i) => {
+    const d = Math.hypot(pos.x - x, pos.y - y);
+    if (d < closestDist) {
+      closestDist = d;
+      closest = i;
+    }
+  });
+  if (closest === -1) {
+    worldTooltip.classList.add("hidden");
+    return;
+  }
+  const frame = worldData.frames[worldFrameIndex];
+  const lines = [`Agent #${closest}`].concat(worldData.topics.map((t) => `${t}: ${frame[t][closest].toFixed(2)}`));
+  worldTooltip.textContent = lines.join(" | ");
+  worldTooltip.style.left = `${evt.clientX - rect.left + 12}px`;
+  worldTooltip.style.top = `${evt.clientY - rect.top + 12}px`;
+  worldTooltip.classList.remove("hidden");
+});
+
+worldCanvas.addEventListener("mouseleave", () => worldTooltip.classList.add("hidden"));
+
+async function openWorldView(config, returnMode) {
+  worldReturnMode = returnMode;
+  worldErrorBox.classList.add("hidden");
+  setMode("world");
+  worldStop();
+  worldData = null;
+  worldCtx.fillStyle = "#0f1420";
+  worldCtx.fillRect(0, 0, worldCanvas.width, worldCanvas.height);
+  worldTickLabel.textContent = "lädt ...";
+
+  try {
+    const response = await fetch("/api/run_visual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      worldErrorBox.textContent = data.error || "Unbekannter Fehler";
+      worldErrorBox.classList.remove("hidden");
+      worldTickLabel.textContent = "Tick 0";
+      return;
+    }
+    worldData = data;
+    worldFrameIndex = 0;
+    worldTopic = data.topics[0];
+    worldScrubber.max = data.frames.length - 1;
+    worldScrubber.value = 0;
+    worldTopicSelect.innerHTML = data.topics.map((t) => `<option value="${t}">${t}</option>`).join("");
+    worldTopicGroup.classList.toggle("hidden", data.topics.length <= 1);
+    worldDrawFrame();
+  } catch (err) {
+    worldErrorBox.textContent = `Verbindung zum Server fehlgeschlagen: ${err.message}`;
+    worldErrorBox.classList.remove("hidden");
+  }
+}
+
+document.getElementById("s-open-world").addEventListener("click", () => {
+  const config = simLastConfig || simBuildConfig();
+  if (!config) return;
+  openWorldView(config, "simple");
+});
+
+document.getElementById("world-button").addEventListener("click", () => {
+  let config;
+  try {
+    config = buildConfig();
+  } catch (err) {
+    showError(`Formular fehlerhaft: ${err.message}`);
+    return;
+  }
+  openWorldView(config, "advanced");
+});
+
+document.getElementById("world-back-btn").addEventListener("click", () => {
+  worldStop();
+  setMode(worldReturnMode);
+});
+
+document.getElementById("mode-world-btn").addEventListener("click", () => {
+  if (worldData) setMode("world");
+  else if (simLastConfig) openWorldView(simLastConfig, "simple");
+  else setMode("world");
+});
 

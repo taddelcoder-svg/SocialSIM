@@ -20,6 +20,7 @@ from .config import ConfigError, ScenarioConfig
 from .data_sources import list_data_sources
 from .run import run_scenario
 from .sensitivity import run_sensitivity
+from .visual import run_visual
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 SCENARIOS_DIR = Path(__file__).resolve().parents[1] / "scenarios"
@@ -84,6 +85,28 @@ def run():
         response["mean_opinion_max"] = mean_range["max"].tolist()
 
     return jsonify(response)
+
+
+@app.route("/api/run_visual", methods=["POST"])
+def run_visual_route():
+    """Fuer die "Welt"-Ansicht: pro Zeitschritt eine Momentaufnahme aller Agenten-
+    Meinungswerte plus eine feste Netzwerk-Layout-Position je Knoten, damit das
+    Frontend das Netzwerk animiert abspielen kann (siehe visual.py)."""
+    body = request.get_json(force=True, silent=False)
+    if body is None:
+        return jsonify({"error": "Kein gueltiges JSON im Request-Body"}), 400
+
+    try:
+        config = ScenarioConfig.from_dict(body)
+    except (ConfigError, ValueError, TypeError, KeyError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    try:
+        data = run_visual(config)
+    except (ConfigError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(data)
 
 
 @app.route("/api/data-sources")

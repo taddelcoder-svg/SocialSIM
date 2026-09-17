@@ -14,6 +14,7 @@
   <div class="mode-toggle">
     <button type="button" id="mode-simple-btn" class="mode-btn active">Einfach</button>
     <button type="button" id="mode-advanced-btn" class="mode-btn">Erweitert</button>
+    <button type="button" id="mode-world-btn" class="mode-btn">&#127760; Welt</button>
   </div>
 </header>
 
@@ -108,6 +109,7 @@
       </div>
 
       <div class="actions">
+        <button type="button" id="s-open-world" class="secondary">&#127760; Als Welt ansehen</button>
         <button type="button" id="s-open-advanced" class="secondary">Erweiterte Ansicht &ouml;ffnen</button>
       </div>
     </div>
@@ -189,6 +191,7 @@
 
     <div class="actions">
       <button type="button" id="run-button" class="primary">Simulation starten</button>
+      <button type="button" id="world-button" class="secondary">&#127760; Als Welt ansehen</button>
       <button type="button" id="calibrate-button" class="secondary">Kalibrierung pr&uuml;fen</button>
       <button type="button" id="export-button" class="secondary">Als JSON exportieren</button>
     </div>
@@ -214,6 +217,33 @@
       </div>
       <button type="button" id="sensitivity-button" class="secondary">Analyse starten</button>
     </fieldset>
+  </section>
+
+  <section class="panel world-panel hidden" id="world-mode">
+    <div class="world-header">
+      <h2>&#127760; Die Welt beobachten</h2>
+      <p class="muted">Jeder Punkt ist ein Agent, jede Linie eine Verbindung im sozialen Netzwerk. Die Farbe zeigt die
+        aktuelle Meinung zum gew&auml;hlten Thema (blau = ablehnend/niedrig, rot = zustimmend/hoch). Klicke auf einen
+        Punkt, um ihn genauer anzusehen. Es wird immer nur EIN Simulationslauf angezeigt (keine Mittelung), damit die
+        Bewegung nachvollziehbar bleibt.</p>
+    </div>
+    <div class="world-stage">
+      <canvas id="world-canvas" width="900" height="560"></canvas>
+      <div id="world-tooltip" class="world-tooltip hidden"></div>
+    </div>
+    <div class="world-controls">
+      <button type="button" id="world-play-btn" class="primary">&#9654; Abspielen</button>
+      <input type="range" id="world-scrubber" min="0" max="0" value="0" />
+      <span id="world-tick-label" class="muted">Tick 0</span>
+      <div class="field-group world-topic-group hidden">
+        <label for="world-topic-select">Thema</label>
+        <select id="world-topic-select"></select>
+      </div>
+    </div>
+    <p id="world-error" class="error hidden"></p>
+    <div class="actions">
+      <button type="button" id="world-back-btn" class="secondary">&larr; Zur&uuml;ck</button>
+    </div>
   </section>
 
   <section class="panel result-panel advanced-only hidden">
