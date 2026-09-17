@@ -175,6 +175,7 @@ Kern des Baukasten-Ansatzes aus dem Framework-Dokument (Abschnitt 5).
 
 ## Bezug zum Framework-Dokument
 
-Siehe das Konzept-Dokument \"Sozialsimulator – Framework-Konzept\" für Vision,
-wissenschaftliche Grundlage (ODD-Protokoll, Hegselmann-Krause, Granovetter,
-Homophilie) und weitere Szenariobeispiele.
+Siehe [KONZEPT.md](KONZEPT.md) für Vision, wissenschaftliche Grundlage
+(ODD-Protokoll, Hegselmann-Krause, Granovetter, Homophilie, DeGroot),
+weitere Szenariobeispiele, den aktuellen Umsetzungsstand (Abschnitt 10)
+und die Grenzen/Risiken des Ansatzes (Abschnitt 11).
