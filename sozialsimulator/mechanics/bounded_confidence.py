@@ -16,17 +16,18 @@ from .base import Mechanic
 
 
 class BoundedConfidenceMechanic(Mechanic):
-    def __init__(self, epsilon: float = 0.2, mu: float = 1.0):
+    def __init__(self, epsilon: float = 0.2, mu: float = 1.0, topic: str = "opinion"):
         if not 0 < epsilon:
             raise ValueError("epsilon muss > 0 sein")
         if not 0 < mu <= 1:
             raise ValueError("mu muss in (0, 1] liegen")
         self.epsilon = epsilon
         self.mu = mu
+        self.topic = topic
 
     def step(self, model) -> None:
         agents = list(model.agents)
-        current = {a.unique_id: a.opinion for a in agents}
+        current = {a.unique_id: a.opinions[self.topic] for a in agents}
 
         new_opinions: dict[int, float] = {}
         for agent in agents:
@@ -40,4 +41,4 @@ class BoundedConfidenceMechanic(Mechanic):
             new_opinions[agent.unique_id] = own + self.mu * (target - own)
 
         for agent in agents:
-            agent.opinion = new_opinions[agent.unique_id]
+            agent.opinions[self.topic] = new_opinions[agent.unique_id]

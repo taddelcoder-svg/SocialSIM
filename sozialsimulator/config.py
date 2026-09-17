@@ -35,6 +35,13 @@ class Distribution:
     kind: str
     params: dict[str, Any] = field(default_factory=dict)
     source: str | None = None
+    correlated_with: dict[str, Any] | None = None
+    """Nur fuer initial_state-Eintraege: {"topic": <anderes Topic>, "strength": 0..1}.
+    Nach dem unabhaengigen Ziehen wird der Wert zu `strength` mit dem bereits
+    gezogenen Wert des Referenz-Topics gemischt - eine einfache, transparente
+    Korrelation statt einer vollen gemeinsamen Verteilung (siehe model.py).
+    Nur eine Korrelationsebene wird unterstuetzt (das Referenz-Topic darf
+    selbst nicht korreliert sein)."""
 
     _ALLOWED_KINDS = {"normal", "uniform", "beta", "choice", "constant", "histogram"}
 
@@ -45,12 +52,22 @@ class Distribution:
         kind = data["kind"]
         if kind not in cls._ALLOWED_KINDS:
             raise ConfigError(f"{path}: unbekannte Verteilung '{kind}' (erlaubt: {sorted(cls._ALLOWED_KINDS)})")
-        return cls(kind=kind, params=dict(data.get("params", {})), source=data.get("source"))
+        correlated_with = data.get("correlated_with")
+        if correlated_with is not None and "topic" not in correlated_with:
+            raise ConfigError(f"{path}.correlated_with braucht 'topic'")
+        return cls(
+            kind=kind,
+            params=dict(data.get("params", {})),
+            source=data.get("source"),
+            correlated_with=dict(correlated_with) if correlated_with else None,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"kind": self.kind, "params": self.params}
         if self.source:
             out["source"] = self.source
+        if self.correlated_with:
+            out["correlated_with"] = self.correlated_with
         return out
 
 
@@ -104,19 +121,26 @@ class NetworkConfig:
 
 @dataclass
 class MechanicConfig:
-    """Welches Verhaltensmodell aktiv ist (Framework-Abschnitt 5) plus seine Parameter."""
+    """Welches Verhaltensmodell aktiv ist (Framework-Abschnitt 5) plus seine Parameter.
+
+    `topic` waehlt, welche Meinungsachse aus `initial_state` diese Mechanik bewegt
+    (Standard: "opinion", der Topic-Name aller bisherigen Einzelthema-Szenarien) -
+    mehrdimensionale Meinungen laufen als mehrere Mechanik-Eintraege mit
+    unterschiedlichem `topic` in derselben `mechanics`-Liste.
+    """
 
     model: str
     params: dict[str, Any] = field(default_factory=dict)
+    topic: str = "opinion"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MechanicConfig":
         if "model" not in data:
             raise ConfigError("mechanics.model fehlt (z.B. 'bounded_confidence')")
-        return cls(model=data["model"], params=dict(data.get("params", {})))
+        return cls(model=data["model"], params=dict(data.get("params", {})), topic=data.get("topic", "opinion"))
 
     def to_dict(self) -> dict[str, Any]:
-        return {"model": self.model, "params": self.params}
+        return {"model": self.model, "params": self.params, "topic": self.topic}
 
 
 def _parse_mechanics(raw: Any) -> list["MechanicConfig"]:
@@ -192,10 +216,30 @@ class ScenarioConfig:
                 raise ConfigError(f"Pflichtfeld '{required}' fehlt im Szenario")
 
         initial_state_raw = data["initial_state"]
+        if not initial_state_raw:
+            raise ConfigError("initial_state braucht mindestens einen Meinungs-Topic")
         initial_state = {
             name: Distribution.from_dict(spec, path=f"initial_state.{name}")
             for name, spec in initial_state_raw.items()
         }
+        for topic, dist in initial_state.items():
+            if not dist.correlated_with:
+                continue
+            ref = dist.correlated_with["topic"]
+            if ref == topic:
+                raise ConfigError(f"initial_state.{topic}.correlated_with darf nicht auf sich selbst verweisen")
+            if ref not in initial_state:
+                raise ConfigError(f"initial_state.{topic}.correlated_with verweist auf unbekanntes Topic '{ref}'")
+            if initial_state[ref].correlated_with:
+                raise ConfigError(
+                    f"initial_state.{topic}.correlated_with verweist auf '{ref}', das selbst korreliert ist - "
+                    "nur eine Korrelationsebene wird unterstuetzt"
+                )
+
+        mechanics = _parse_mechanics(data["mechanics"])
+        for m in mechanics:
+            if m.topic not in initial_state:
+                raise ConfigError(f"mechanics-Topic '{m.topic}' hat keinen passenden Eintrag in initial_state")
 
         events = [Event.from_dict(evt, index=i) for i, evt in enumerate(data.get("events", []))]
 
@@ -204,7 +248,7 @@ class ScenarioConfig:
             population=PopulationConfig.from_dict(data["population"]),
             network=NetworkConfig.from_dict(data["network"]),
             initial_state=initial_state,
-            mechanics=_parse_mechanics(data["mechanics"]),
+            mechanics=mechanics,
             time=TimeConfig.from_dict(data.get("time", {})),
             events=events,
             seed=data.get("seed"),

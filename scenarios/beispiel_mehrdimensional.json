@@ -1,0 +1,38 @@
+{
+  "name": "Testfall: zwei korrelierte Meinungsachsen (Klima + Energiepolitik)",
+  "notes": "Demonstriert mehrdimensionale Meinungen (Framework-Abschnitt 4/10): zwei Bounded-Confidence-Mechaniken mit unterschiedlichem 'topic' auf demselben Netzwerk. 'energiepolitik' ist ueber 'correlated_with' an 'klima' gekoppelt (60% Staerke) - eine konstruierte Annahme, keine reale gemeinsame Verteilung.",
+  "seed": 33,
+  "population": {
+    "size": 300,
+    "attributes": {}
+  },
+  "network": {
+    "type": "watts_strogatz",
+    "params": { "k": 15, "beta": 0.1 }
+  },
+  "initial_state": {
+    "klima": {
+      "kind": "histogram",
+      "params": {
+        "bins": [
+          { "min": -1.0, "max": -0.333, "weight": 0.11 },
+          { "min": -0.333, "max": 0.333, "weight": 0.18 },
+          { "min": 0.333, "max": 1.0, "weight": 0.71 }
+        ]
+      },
+      "source": "Special Eurobarometer 538 (Mai 2023), Deutschland - siehe beispiel_bounded_confidence.json"
+    },
+    "energiepolitik": {
+      "kind": "normal",
+      "params": { "mean": 0.0, "std": 0.5, "min": -1.0, "max": 1.0 },
+      "correlated_with": { "topic": "klima", "strength": 0.6 },
+      "source": "Annahme: 60% Korrelation mit Klimasorge (keine reale gemeinsame Verteilung verfuegbar, nicht empirisch belegt)"
+    }
+  },
+  "mechanics": [
+    { "model": "bounded_confidence", "topic": "klima", "params": { "epsilon": 0.3, "mu": 0.5 } },
+    { "model": "bounded_confidence", "topic": "energiepolitik", "params": { "epsilon": 0.4, "mu": 0.5 } }
+  ],
+  "events": [],
+  "time": { "steps": 60, "runs": 5 }
+}

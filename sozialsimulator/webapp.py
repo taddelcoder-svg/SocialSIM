@@ -58,25 +58,32 @@ def run():
         return jsonify({"error": str(exc)}), 400
 
     grouped = results.groupby("tick")
-    aggregated = grouped[["mean_opinion", "std_opinion"]].mean().reset_index()
-    mean_range = grouped["mean_opinion"].agg(["min", "max"]).reset_index()
+    numeric_cols = [c for c in results.columns if c not in ("run", "tick")]
+    aggregated = grouped[numeric_cols].mean().reset_index()
 
-    return jsonify(
-        {
-            "ticks": aggregated["tick"].tolist(),
-            "mean_opinion": aggregated["mean_opinion"].tolist(),
-            "std_opinion": aggregated["std_opinion"].tolist(),
-            # Spannweite von mean_opinion UEBER die Wiederholungslaeufe je Tick (nicht
-            # zu verwechseln mit std_opinion, das die Streuung ZWISCHEN Agenten misst) -
-            # Grundlage fuer eine ehrliche Bandbreite statt einer einzelnen Zahl
-            # (Framework-Abschnitt 8, 'Mehrfachlaeufe').
-            "mean_opinion_min": mean_range["min"].tolist(),
-            "mean_opinion_max": mean_range["max"].tolist(),
-            "runs": config.time.runs,
-            "population_size": config.population.size,
-            "mechanic": " + ".join(m.model for m in config.mechanics),
-        }
-    )
+    response = {
+        "ticks": aggregated["tick"].tolist(),
+        "runs": config.time.runs,
+        "population_size": config.population.size,
+        "mechanic": " + ".join(m.model for m in config.mechanics),
+        "topics": list(config.initial_state.keys()),
+    }
+    # Jede Meinungsachse (mean_<topic>/std_<topic>, siehe model.py) generisch mitschicken -
+    # deckt sowohl das klassische Einzelthema-Feld "mean_opinion"/"std_opinion" als auch
+    # mehrdimensionale Szenarien mit mehreren Topics ab.
+    for col in numeric_cols:
+        response[col] = aggregated[col].tolist()
+
+    if "mean_opinion" in results.columns:
+        # Spannweite von mean_opinion UEBER die Wiederholungslaeufe je Tick (nicht
+        # zu verwechseln mit std_opinion, das die Streuung ZWISCHEN Agenten misst) -
+        # Grundlage fuer eine ehrliche Bandbreite statt einer einzelnen Zahl
+        # (Framework-Abschnitt 8, 'Mehrfachlaeufe').
+        mean_range = grouped["mean_opinion"].agg(["min", "max"]).reset_index()
+        response["mean_opinion_min"] = mean_range["min"].tolist()
+        response["mean_opinion_max"] = mean_range["max"].tolist()
+
+    return jsonify(response)
 
 
 @app.route("/api/data-sources")

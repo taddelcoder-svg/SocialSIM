@@ -44,11 +44,16 @@ def _narrow_confidence(model, params: dict) -> None:
 
 
 def _shift_opinion(model, params: dict) -> None:
-    """Verschiebt die Meinung eines Anteils zufaellig gewaehlter Agenten um `delta`."""
+    """Verschiebt die Meinung eines Anteils zufaellig gewaehlter Agenten um `delta`.
+
+    `topic` (optional) waehlt bei mehrdimensionalen Meinungen die betroffene
+    Meinungsachse; Standard "opinion".
+    """
     delta = float(params.get("delta", 0.0))
     fraction = float(params.get("fraction", 1.0))
+    topic = params.get("topic", "opinion")
     agents = list(model.agents)
     n_affected = max(1, round(len(agents) * fraction))
     chosen = model.random.sample(agents, k=n_affected)
     for agent in chosen:
-        agent.opinion += delta
+        agent.opinions[topic] += delta

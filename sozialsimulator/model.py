@@ -6,7 +6,9 @@ aus. Nichts davon ist an ein bestimmtes Szenario gebunden - andere Config,
 anderes Ergebnis, ohne Codeaenderung. Sind mehrere Mechaniken konfiguriert,
 laufen sie pro Zeitschritt in der angegebenen Reihenfolge: jede sieht bereits
 die Aenderungen der vorherigen im selben Tick (Pipeline, keine gleichzeitige
-Anwendung).
+Anwendung). `initial_state` kann mehrere Meinungs-Topics enthalten (Framework-
+Abschnitt 4, "mehrdimensionale Meinungen") - jeder Mechanik-Eintrag waehlt per
+`topic` (Standard "opinion"), welche Achse er bewegt.
 """
 
 from __future__ import annotations
@@ -36,10 +38,8 @@ class SocialSimulationModel(mesa.Model):
         self.agent_to_node: dict[int, int] = {}
         self.node_to_agent: dict[int, SocialAgent] = {}
 
-        if "opinion" not in config.initial_state:
-            raise ConfigError("initial_state braucht mindestens den Eintrag 'opinion'")
         n = config.population.size
-        opinions = sample(config.initial_state["opinion"], self.rng, n)
+        sampled_topics = self._sample_initial_state(config, n)
 
         attribute_values = {
             name: sample(dist, self.rng, n) for name, dist in config.population.attributes.items()
@@ -48,24 +48,58 @@ class SocialSimulationModel(mesa.Model):
         nodes = list(graph.nodes())
         for i, node in enumerate(nodes):
             extra = {name: values[i] for name, values in attribute_values.items()}
-            agent = SocialAgent(self, opinion=float(opinions[i]), extra=extra)
+            agent_opinions = {topic: float(values[i]) for topic, values in sampled_topics.items()}
+            agent = SocialAgent(self, opinions=agent_opinions, extra=extra)
             self.agent_to_node[agent.unique_id] = node
             self.node_to_agent[node] = agent
             self.grid.place_agent(agent, node)
 
         self.mechanics: list[tuple[str, object]] = [
-            (m.model, get_mechanic(m.model, m.params)) for m in config.mechanics
+            (m.model, get_mechanic(m.model, {**m.params, "topic": m.topic})) for m in config.mechanics
         ]
         self.schedule_tick = 0
         self._confidence_restore: list[tuple[int, object, float]] = []
 
-        self.datacollector = mesa.DataCollector(
-            model_reporters={
-                "mean_opinion": lambda m: statistics.mean(a.opinion for a in m.agents),
-                "std_opinion": lambda m: statistics.pstdev(a.opinion for a in m.agents),
-            }
-        )
+        self.datacollector = mesa.DataCollector(model_reporters=self._build_reporters(sampled_topics.keys()))
         self.datacollector.collect(self)
+
+    def _sample_initial_state(self, config: ScenarioConfig, n: int) -> dict[str, np.ndarray]:
+        """Zieht jeden Meinungs-Topic aus `initial_state`; ein Topic mit `correlated_with`
+        wird nach seinem Referenz-Topic gezogen und dann zu `strength` mit dessen
+        (bereits gezogenen) Werten gemischt - mehrdimensionale, optional korrelierte
+        Meinungen im Sinne von Framework-Abschnitt 4."""
+        topic_order = sorted(
+            config.initial_state.keys(), key=lambda t: config.initial_state[t].correlated_with is not None
+        )
+        sampled: dict[str, np.ndarray] = {}
+        for topic in topic_order:
+            dist = config.initial_state[topic]
+            values = sample(dist, self.rng, n)
+            if dist.correlated_with:
+                ref_topic = dist.correlated_with["topic"]
+                if ref_topic not in sampled:
+                    raise ConfigError(
+                        f"initial_state.{topic}.correlated_with verweist auf '{ref_topic}', "
+                        "das noch nicht gezogen wurde (Konfigurationsfehler)"
+                    )
+                strength = float(dist.correlated_with.get("strength", 0.5))
+                values = strength * sampled[ref_topic] + (1 - strength) * values
+            sampled[topic] = values
+        return sampled
+
+    @staticmethod
+    def _build_reporters(topics) -> dict:
+        def make_mean(topic: str):
+            return lambda m: statistics.mean(a.opinions[topic] for a in m.agents)
+
+        def make_std(topic: str):
+            return lambda m: statistics.pstdev(a.opinions[topic] for a in m.agents)
+
+        reporters = {}
+        for topic in topics:
+            reporters[f"mean_{topic}"] = make_mean(topic)
+            reporters[f"std_{topic}"] = make_std(topic)
+        return reporters
 
     def get_mechanic(self, name: str):
         """Erste konfigurierte Mechanik-Instanz mit diesem Modellnamen (z.B. 'bounded_confidence')."""

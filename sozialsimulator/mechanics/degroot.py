@@ -22,11 +22,12 @@ from .base import Mechanic
 
 
 class DeGrootMechanic(Mechanic):
-    def __init__(self, self_weight: float = 0.5, credibility_key: str | None = None):
+    def __init__(self, self_weight: float = 0.5, credibility_key: str | None = None, topic: str = "opinion"):
         if not 0 <= self_weight <= 1:
             raise ValueError("self_weight muss in [0, 1] liegen")
         self.self_weight = self_weight
         self.credibility_key = credibility_key
+        self.topic = topic
 
     def _neighbor_weights(self, neighbors) -> list[float]:
         if self.credibility_key is None:
@@ -35,7 +36,7 @@ class DeGrootMechanic(Mechanic):
 
     def step(self, model) -> None:
         agents = list(model.agents)
-        current = {a.unique_id: a.opinion for a in agents}
+        current = {a.unique_id: a.opinions[self.topic] for a in agents}
 
         new_opinions: dict[int, float] = {}
         for agent in agents:
@@ -57,4 +58,4 @@ class DeGrootMechanic(Mechanic):
             new_opinions[agent.unique_id] = self.self_weight * own + (1 - self.self_weight) * neighbor_avg
 
         for agent in agents:
-            agent.opinion = new_opinions[agent.unique_id]
+            agent.opinions[self.topic] = new_opinions[agent.unique_id]

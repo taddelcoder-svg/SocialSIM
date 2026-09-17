@@ -19,12 +19,13 @@ from .base import Mechanic
 
 
 class ThresholdMechanic(Mechanic):
-    def __init__(self, threshold_key: str = "threshold"):
+    def __init__(self, threshold_key: str = "threshold", topic: str = "opinion"):
         self.threshold_key = threshold_key
+        self.topic = topic
 
     def step(self, model) -> None:
         agents = list(model.agents)
-        adopted = {a.unique_id: a.opinion >= 0.5 for a in agents}
+        adopted = {a.unique_id: a.opinions[self.topic] >= 0.5 for a in agents}
 
         newly_adopted: list[int] = []
         for agent in agents:
@@ -42,4 +43,4 @@ class ThresholdMechanic(Mechanic):
             return
         by_id = {a.unique_id: a for a in agents}
         for agent_id in newly_adopted:
-            by_id[agent_id].opinion = 1.0
+            by_id[agent_id].opinions[self.topic] = 1.0

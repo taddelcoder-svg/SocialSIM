@@ -20,6 +20,7 @@ python -m sozialsimulator.run scenarios/beispiel_konsens.json
 python -m sozialsimulator.run scenarios/beispiel_schwellenwert.json
 python -m sozialsimulator.run scenarios/beispiel_degroot.json
 python -m sozialsimulator.run scenarios/beispiel_kombiniert.json
+python -m sozialsimulator.run scenarios/beispiel_mehrdimensional.json
 ```
 
 ## Rahmen-UI (Szenario zusammenklicken)
@@ -79,6 +80,26 @@ Ein Event wie `narrow_confidence` kann bei mehreren Mechaniken per `"target":
 verengen, `degroot` unberuehrt lassen); ohne `target` wird die erste Mechanik
 mit einem `epsilon`-Attribut verwendet. Programmatischer Zugriff auf eine
 bestimmte Instanz: `model.get_mechanic("bounded_confidence")`.
+
+## Mehrdimensionale Meinungen
+
+`initial_state` kann mehrere benannte Meinungs-Topics enthalten statt nur
+`"opinion"` (z.B. `"klima"` und `"energiepolitik"`); jeder `mechanics`-Eintrag
+waehlt per `"topic"` (Standard `"opinion"`), welche Achse er bewegt - so lassen
+sich mehrere Themen mit unterschiedlichen Mechaniken/Parametern gleichzeitig
+auf derselben Population simulieren. Ein Topic kann optional
+`"correlated_with": {"topic": "<anderes Topic>", "strength": 0.0-1.0}` tragen:
+nach dem unabhaengigen Ziehen wird der Wert zu `strength` mit dem (bereits
+gezogenen) Referenz-Topic gemischt - eine einfache, transparente Korrelation,
+keine volle gemeinsame Verteilung; nur eine Korrelationsebene wird unterstuetzt
+(das Referenz-Topic darf selbst nicht korreliert sein). Siehe
+`scenarios/beispiel_mehrdimensional.json`. `SocialAgent.opinion` bleibt als
+Bequemlichkeits-Alias fuer `opinions["opinion"]` erhalten - alle Einzelthema-
+Szenarien und bestehender Code laufen unveraendert weiter.
+
+`check_calibration` prueft ein korreliertes Topic nicht isoliert (die
+Mischung passiert erst bei der Populationserzeugung) und weist das explizit
+aus, statt eine irrefuehrende Zahl zu zeigen.
 
 ## Echte Daten statt Platzhalter
 
@@ -161,7 +182,7 @@ Abschnitt "Sensitivitätsanalyse" im Formular).
 - `sozialsimulator/paths.py` – Dotted-Path-Zugriff auf ein Config-Dict (fuer die Sensitivitaetsanalyse)
 - `sozialsimulator/calibration.py` – vergleicht gezogene Stichproben mit den Zielgewichten der Config (Framework-Abschnitt 8)
 - `sozialsimulator/sensitivity.py` – variiert einen Parameter ueber eine Werteliste und misst die Auswirkung auf eine Metrik (Framework-Abschnitt 8)
-- `scenarios/*.json` – fünf Beispielszenarien als Testfälle für die Konfigurationsschicht (zwei Bounded-Confidence-Varianten, ein Schwellenwert-Diffusionsszenario, ein DeGroot-Falschinformationsszenario, ein Szenario mit zwei kombinierten Mechaniken)
+- `scenarios/*.json` – sechs Beispielszenarien als Testfälle für die Konfigurationsschicht (zwei Bounded-Confidence-Varianten, ein Schwellenwert-Diffusionsszenario, ein DeGroot-Falschinformationsszenario, ein Szenario mit zwei kombinierten Mechaniken, ein Szenario mit zwei korrelierten Meinungsachsen)
 - `tests/` – pytest-Suite (`python -m pytest`)
 
 ## Ein neues Verhaltensmodell hinzufügen

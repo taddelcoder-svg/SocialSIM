@@ -106,6 +106,21 @@ def check_calibration(config: ScenarioConfig, sample_size: int = 20_000) -> list
     rng = np.random.default_rng(config.seed)
     results = []
     for name, dist in config.initial_state.items():
+        if dist.correlated_with:
+            # Die eigene Marginalverteilung eines korrelierten Topics ist nicht das, was
+            # die Population tatsaechlich sieht (model.py mischt sie mit dem Referenz-Topic) -
+            # eine isolierte Stichprobe hier waere irrefuehrend, deshalb nur ein Hinweis.
+            results.append(
+                CalibrationResult(
+                    f"initial_state.{name}",
+                    dist.kind,
+                    f"korreliert mit '{dist.correlated_with['topic']}' (Staerke "
+                    f"{dist.correlated_with.get('strength', 0.5)}) - wird erst bei der "
+                    "Populationserzeugung gemischt, hier nicht isoliert pruefbar",
+                    0.0,
+                )
+            )
+            continue
         results.append(_check_distribution(f"initial_state.{name}", dist, rng, sample_size))
     for name, dist in config.population.attributes.items():
         results.append(_check_distribution(f"population.attributes.{name}", dist, rng, sample_size))

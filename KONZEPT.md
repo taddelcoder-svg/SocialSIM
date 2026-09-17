@@ -164,14 +164,14 @@ Das Ergebnis ist immer als **Bandbreite plausibler Verläufe** zu kommunizieren,
 4. Datenquellen-Katalog (`data_sources.py`, aktuell sechs Einträge) statt einmaliger Platzhalter-Ersetzung – wächst laufend weiter
 5. Rahmen-UI: von "alle Parameter gleichzeitig" über einen mehrstufigen Wizard zu einem einzigen, vorbelegten Formular mit optionalen Detaileinstellungen (mehrere Iterationen nach Nutzer-Feedback zur Bedienbarkeit)
 6. Zukunftsprojektion: reale Zeitspanne + Bandbreite über Wiederholungsläufe statt einer einzelnen Zahl, mit explizitem Vorhersage-Caveat
+7. Mehrdimensionale Meinungen: `initial_state` kann mehrere benannte Topics tragen (z.B. "klima" + "energiepolitik"), jede Mechanik wählt per `topic`, welche Achse sie bewegt; optionale einfache Korrelation zwischen zwei Topics per `correlated_with`. Siehe `scenarios/beispiel_mehrdimensional.json`. Bestehende Einzelthema-Szenarien laufen unverändert (Topic-Name "opinion" als Standard, `SocialAgent.opinion` als Alias).
 
 **Noch offen:**
 
-1. **Mehrdimensionale Meinungen** – Abschnitt 4 sieht "ein oder mehrere" Meinungsachsen pro Agent vor; der Prototyp hat bisher nur eine (`opinion`). Mehrere Themen gleichzeitig (ggf. korreliert) wäre der nächste Schritt zu realistischeren Agenten.
-2. **Dynamische Netzwerke** – Abschnitt 5 nennt "Homophilie-Netzwerkbildung" als Modell; der Prototyp baut Netzwerke bisher nur einmal beim Start. Ein Modell, das Verbindungen während der Simulation neu knüpft oder kappt, fehlt noch.
-3. **Historischer Abgleich** (Abschnitt 8) – bisher nicht umgesetzt: ein Szenario an einem bereits bekannten, dokumentierten realen Verlauf testen, um Face Validity über reine Plausibilität hinaus zu prüfen.
-4. **Geografische Einseitigkeit des Datenkatalogs** – alle sechs Einträge stammen aus Deutschland/EU bzw. global aggregierten Studien; siehe Abschnitt 11.
-5. **Szenarien speichern & vergleichen** – aktuell wird jede Simulation isoliert betrachtet; ein Vergleich mehrerer ganzer Szenario-Varianten nebeneinander existiert nicht (nur Sensitivitätsanalyse für einen einzelnen Parameter).
+1. **Dynamische Netzwerke** – Abschnitt 5 nennt "Homophilie-Netzwerkbildung" als Modell; der Prototyp baut Netzwerke bisher nur einmal beim Start. Ein Modell, das Verbindungen während der Simulation neu knüpft oder kappt, fehlt noch.
+2. **Historischer Abgleich** (Abschnitt 8) – bisher nicht umgesetzt: ein Szenario an einem bereits bekannten, dokumentierten realen Verlauf testen, um Face Validity über reine Plausibilität hinaus zu prüfen.
+3. **Geografische Einseitigkeit des Datenkatalogs** – alle sechs Einträge stammen aus Deutschland/EU bzw. global aggregierten Studien; siehe Abschnitt 11.
+4. **Szenarien speichern & vergleichen** – aktuell wird jede Simulation isoliert betrachtet; ein Vergleich mehrerer ganzer Szenario-Varianten nebeneinander existiert nicht (nur Sensitivitätsanalyse für einen einzelnen Parameter).
 
 Der Prototyp bleibt ein Konfigurations- und Analysewerkzeug, kein Orakel – jeder weitere Ausbauschritt sollte an Abschnitt 8 (Kalibrierung/Sensitivität) und Abschnitt 11 (Grenzen) gemessen werden, bevor er als "fertig" gilt.
 

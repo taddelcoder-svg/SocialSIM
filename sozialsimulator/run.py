@@ -50,7 +50,8 @@ def main() -> None:
     )
 
     results = run_scenario(config)
-    summary = results.groupby("tick")[["mean_opinion", "std_opinion"]].mean()
+    metric_cols = [c for c in results.columns if c not in ("run", "tick")]
+    summary = results.groupby("tick")[metric_cols].mean()
     print("\nMittelwert ueber alle Laeufe (erste/letzte 3 Ticks):")
     print(pd.concat([summary.head(3), summary.tail(3)]))
 
