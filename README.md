@@ -30,19 +30,21 @@ python -m sozialsimulator.webapp
 
 Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben rechts umschaltbar):
 
-- **Einfach** (Standard): ein gefuehrter Wizard - entweder einen der drei
-  vorgefertigten Typen waehlen (Meinungsbildung / Verhaltensverbreitung /
-  Informationsverbreitung, EIN Regler plus Gruppengroesse/Dauer), oder
-  **"Eigenes Szenario"**: eigenes Thema eintippen, zugrundeliegende Kategorie
-  waehlen, und die Ausgangswerte entweder aus dem Datenquellen-Katalog
-  (`data_sources.py`, z.B. Eurobarometer-Klimasorge oder Rogers'
-  Frühe-Übernehmer-Anteil) oder als eigene Prozent-Schätzung setzen - die
-  Quelle wird immer im Ergebnis zitiert. Antwort als Klartext-Satz
-  ("Die Gruppe bleibt gespalten...") statt Rohzahlen.
-- **Datenquellen-Katalog** (`/api/data-sources`): reale, zitierte Verteilungen,
-  die sowohl im "Eigenes Szenario"-Wizard als auch programmatisch
-  wiederverwendbar sind - erweiterbar durch neue Einträge in
-  `data_sources.py` (Distribution + Zitat + `applies_to`).
+- **Einfach** (Standard): EIN Formular ohne Klick-Schritte. Thema eintippen
+  (optional), eine von drei Kategorien waehlen (Meinungsbildung /
+  Verhaltensverbreitung / Glaubwuerdigkeit einer Nachricht), EIN Regler plus
+  EIN Prozentwert einstellen - alles andere (Gruppengroesse, Dauer, Ereignis)
+  steht mit sinnvollen Standardwerten unter "Weitere Einstellungen (optional)".
+  Passt ein Eintrag aus dem Datenquellen-Katalog zur Kategorie (z.B.
+  Eurobarometer-Klimasorge zu "Meinungsbildung"), erscheint eine Checkbox
+  "Stattdessen echte Daten nutzen" - per Default zaehlt die eigene Prozent-
+  Schätzung, damit reale Daten nie versehentlich auf ein unpassendes Thema
+  übertragen werden. "Simulieren" antwortet als Klartext-Satz ("Die Gruppe
+  bleibt gespalten...") statt mit Rohzahlen.
+- **Datenquellen-Katalog** (`/api/data-sources`): reale, zitierte Verteilungen
+  (`data_sources.py`, z.B. Eurobarometer-Klimasorge, Rogers'
+  Frühe-Übernehmer-Anteil) - erweiterbar durch neue Einträge
+  (Distribution + Zitat + `applies_to`).
 - **Erweitert**: das volle Formular (Population, Netzwerk, Ausgangszustand,
   mehrere Mechaniken, Ereignisse, Kalibrierung, Sensitivitaetsanalyse). "Aus
   dem Wizard heraus oeffnen" uebernimmt die gerade simulierte Konfiguration

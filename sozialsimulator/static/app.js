@@ -684,15 +684,16 @@ function setMode(mode) {
 modeSimpleBtn.addEventListener("click", () => setMode("simple"));
 modeAdvancedBtn.addEventListener("click", () => setMode("advanced"));
 
-// ==================== Einfacher Modus (gefuehrter Wizard) ====================
-// Jeder Typ baut auf einem echten Beispielszenario auf (siehe scenarios/*.json) -
-// die zugrundeliegenden realen Datenquellen (Destatis, Eurobarometer, Rogers,
-// Nielsen) bleiben erhalten, nur die Bedienung ist reduziert auf EINEN Regler
-// plus Gruppengroesse/Dauer statt des vollen Formulars.
-const WIZARD_TYPES = {
+// ==================== Einfacher Modus: EIN Formular, keine Schritte ====================
+// Jede Kategorie baut auf einem echten Beispielszenario auf (scenarios/*.json) -
+// die realen Datenquellen (Destatis, Eurobarometer, Rogers, Nielsen) bleiben
+// erhalten, nur die Bedienung ist auf das Noetigste reduziert: Thema, EINE
+// Kategorie, EIN Regler, EIN Prozentwert. Gruppengroesse/Dauer/Ereignis stehen
+// mit sinnvollen Standardwerten unter "Weitere Einstellungen (optional)".
+const SIM_KINDS = {
   meinung: {
-    label: "Meinungsbildung",
-    description: "Wie sich Meinungen in einer Gruppe entwickeln - bilden sich Lager, oder einigt man sich?",
+    label: "Wie sich Meinungen entwickeln",
+    description: "Bilden sich Lager, oder einigt sich die Gruppe?",
     exampleFile: "beispiel_bounded_confidence.json",
     sliderLabel: "Wie offen sind Menschen für andere Meinungen?",
     sliderMin: 0.1,
@@ -701,19 +702,20 @@ const WIZARD_TYPES = {
     sliderDefault: 0.3,
     sliderLowText: "sehr verschlossen",
     sliderHighText: "sehr offen",
+    estimateLabel: "Wie viele finden das Thema anfangs sehr wichtig?",
+    appliesTo: "opinion_continuous",
     applySlider: (config, value) => {
       config.mechanics[0].params.epsilon = value;
     },
-    supportsEvent: true,
+    estimateDistribution: (pct) => ({
+      kind: "normal",
+      params: { mean: (pct / 100) * 2 - 1, std: 0.4, min: -1.0, max: 1.0 },
+      source: `Eigene Schätzung: ${pct}%`,
+    }),
     eventLabel: "Ein aufrüttelndes Ereignis einbauen (z.B. eine virale Nachricht)?",
     addEvent: (config, tick) => {
       config.events = [{ tick, type: "narrow_confidence", params: { factor: 0.3, duration: 15 } }];
     },
-    summarySentence: (s) =>
-      `Du simulierst, wie sich Meinungen zum Klimawandel bei ${s.size} Personen entwickeln. ` +
-      `Sie orientieren sich ${s.sliderDesc} an Menschen mit ähnlicher Meinung. ` +
-      `Beobachtet wird über ${s.duration} Zeitschritte.` +
-      (s.eventOn ? ` Bei Schritt ${s.eventTick} kommt ein aufrüttelndes Ereignis dazu.` : ""),
     interpret: (data) => {
       const std = data.std_opinion[data.std_opinion.length - 1];
       const mean = data.mean_opinion[data.mean_opinion.length - 1];
@@ -727,8 +729,8 @@ const WIZARD_TYPES = {
     },
   },
   verhalten: {
-    label: "Verhaltensverbreitung",
-    description: "Wie sich ein neues Verhalten (z.B. ein Trend) in einer Gruppe ausbreitet.",
+    label: "Wie sich ein Verhalten verbreitet",
+    description: "Zieht die Gruppe mit einem neuen Trend mit, oder verpufft er?",
     exampleFile: "beispiel_schwellenwert.json",
     sliderLabel: "Wie gut ist die Gruppe vernetzt?",
     sliderMin: 4,
@@ -737,13 +739,16 @@ const WIZARD_TYPES = {
     sliderDefault: 15,
     sliderLowText: "locker vernetzt",
     sliderHighText: "eng vernetzt",
+    estimateLabel: "Wie viele haben es anfangs schon übernommen?",
+    appliesTo: "initial_adoption",
     applySlider: (config, value) => {
       config.network.params.k = value;
     },
-    supportsEvent: false,
-    summarySentence: (s) =>
-      `Du simulierst, wie sich ein neues Verhalten bei ${s.size} Personen ausbreitet. ` +
-      `Die Gruppe ist ${s.sliderDesc}. Beobachtet wird über ${s.duration} Zeitschritte.`,
+    estimateDistribution: (pct) => ({
+      kind: "choice",
+      params: { options: [0.0, 1.0], weights: [1 - pct / 100, pct / 100] },
+      source: `Eigene Schätzung: ${pct}%`,
+    }),
     interpret: (data) => {
       const share = data.mean_opinion[data.mean_opinion.length - 1];
       const pct = Math.round(share * 100);
@@ -755,8 +760,8 @@ const WIZARD_TYPES = {
     },
   },
   information: {
-    label: "Informationsverbreitung",
-    description: "Wie glaubwürdig verschiedene Personen eine Botschaft weitertragen.",
+    label: "Wie glaubwürdig eine Nachricht bleibt",
+    description: "Einigt sich die Gruppe, ob etwas stimmt, oder bleiben die Meinungen verschieden?",
     exampleFile: "beispiel_degroot.json",
     sliderLabel: "Wie stark bleiben Menschen bei ihrer eigenen Meinung?",
     sliderMin: 0.1,
@@ -765,18 +770,20 @@ const WIZARD_TYPES = {
     sliderDefault: 0.6,
     sliderLowText: "leicht beeinflussbar",
     sliderHighText: "sehr eigenständig",
+    estimateLabel: "Wie viele halten die Nachricht anfangs für glaubwürdig?",
+    appliesTo: null,
     applySlider: (config, value) => {
       config.mechanics[0].params.self_weight = value;
     },
-    supportsEvent: true,
+    estimateDistribution: (pct) => ({
+      kind: "normal",
+      params: { mean: pct / 100, std: 0.25, min: 0.0, max: 1.0 },
+      source: `Eigene Schätzung: ${pct}%`,
+    }),
     eventLabel: "Eine gezielte Falschinformation einstreuen?",
     addEvent: (config, tick) => {
       config.events = [{ tick, type: "shift_opinion", params: { delta: 0.4, fraction: 0.05 } }];
     },
-    summarySentence: (s) =>
-      `Du simulierst, wie glaubwürdig ${s.size} Personen eine Nachricht weitertragen. ` +
-      `Sie sind dabei ${s.sliderDesc}. Beobachtet wird über ${s.duration} Zeitschritte.` +
-      (s.eventOn ? ` Bei Schritt ${s.eventTick} wird gezielt Falschinformation gestreut.` : ""),
     interpret: (data) => {
       const std = data.std_opinion[data.std_opinion.length - 1];
       const mean = data.mean_opinion[data.mean_opinion.length - 1];
@@ -796,170 +803,33 @@ const WIZARD_TYPES = {
   },
 };
 
-const SIZE_OPTIONS = [
+const SIM_SIZE_OPTIONS = [
   { label: "Klein", value: 100 },
   { label: "Mittel", value: 300 },
   { label: "Groß", value: 800 },
 ];
-const DURATION_OPTIONS = [
+const SIM_DURATION_OPTIONS = [
   { label: "Kurz", value: 20 },
   { label: "Mittel", value: 50 },
   { label: "Lang", value: 100 },
 ];
 
-let wizardTypeKey = null;
-let wizardSize = SIZE_OPTIONS[1].value;
-let wizardDuration = DURATION_OPTIONS[1].value;
-let wizardLastConfig = null;
-let wizardLastResult = null;
-let wizardChart = null;
+let simKindKey = "meinung";
+let simSize = SIM_SIZE_OPTIONS[1].value;
+let simDuration = SIM_DURATION_OPTIONS[1].value;
+let simRealDataEntry = null;
+let simLastConfig = null;
+let simChart = null;
 
-function getExampleConfig(filename) {
+function simGetExampleConfig(filename) {
   const entry = loadedExamples.find((ex) => ex.file === filename);
   if (!entry) return null;
   const config = JSON.parse(entry.config);
-  // scenarios/*.json duerfen 'mechanics' als einzelnes Objekt ODER Liste haben
-  // (config.py akzeptiert beides) - der Wizard erwartet immer eine Liste.
   if (!Array.isArray(config.mechanics)) config.mechanics = [config.mechanics];
   return config;
 }
 
-function showWizardStep(stepEl) {
-  document.querySelectorAll("#simple-mode .wizard-step").forEach((el) => el.classList.add("hidden"));
-  stepEl.classList.remove("hidden");
-  const stepNumber = {
-    "wizard-step-1": 1,
-    "wizard-custom-setup": 1,
-    "wizard-step-2": 2,
-    "wizard-step-3": 3,
-    "wizard-result": 3,
-  }[stepEl.id];
-  document.querySelectorAll(".wizard-dot").forEach((dot) => {
-    const n = parseInt(dot.dataset.step, 10);
-    dot.classList.toggle("active", n === stepNumber);
-    dot.classList.toggle("done", n < stepNumber);
-  });
-}
-
-function renderWizardCards() {
-  const container = document.getElementById("wizard-type-cards");
-  container.innerHTML = "";
-  Object.entries(WIZARD_TYPES).forEach(([key, type]) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "wizard-card";
-    btn.innerHTML = `<strong>${type.label}</strong><span>${type.description}</span>`;
-    btn.addEventListener("click", () => {
-      wizardIsCustom = false;
-      wizardTypeKey = key;
-      renderWizardStep2();
-      showWizardStep(document.getElementById("wizard-step-2"));
-    });
-    container.appendChild(btn);
-  });
-
-  const customBtn = document.createElement("button");
-  customBtn.type = "button";
-  customBtn.className = "wizard-card";
-  customBtn.innerHTML =
-    "<strong>Eigenes Szenario</strong><span>Eigenes Thema mit passenden echten Daten oder einer eigenen Schätzung als Ausgangswert.</span>";
-  customBtn.addEventListener("click", () => {
-    wizardIsCustom = true;
-    renderWizardCustomSetup();
-    showWizardStep(document.getElementById("wizard-custom-setup"));
-  });
-  container.appendChild(customBtn);
-}
-
-// ---- "Eigenes Szenario": Thema + zugrundeliegende Kategorie + Datenquelle ----
-const CUSTOM_APPLIES_TO = { meinung: "opinion_continuous", verhalten: "initial_adoption", information: null };
-const CUSTOM_ESTIMATE_LABEL = {
-  meinung: "Wie viele finden das Thema anfangs sehr wichtig?",
-  verhalten: "Wie viele haben es anfangs schon übernommen?",
-  information: "Wie viele halten es anfangs für glaubwürdig?",
-};
-
-let wizardIsCustom = false;
-let wizardCustomSource = null; // ausgewaehlter Katalogeintrag ODER null (= eigene Schaetzung)
-
-function renderWizardCustomSetup() {
-  const container = document.getElementById("wizard-custom-kind-cards");
-  container.innerHTML = "";
-  ["meinung", "verhalten", "information"].forEach((key) => {
-    const type = WIZARD_TYPES[key];
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "wizard-card";
-    btn.innerHTML = `<strong>${type.label}</strong><span>${type.description}</span>`;
-    btn.addEventListener("click", async () => {
-      Array.from(container.children).forEach((c) => c.classList.remove("active"));
-      btn.classList.add("active");
-      wizardTypeKey = key;
-      document.getElementById("wizard-custom-next").disabled = false;
-      await renderCustomSourceGroup(key);
-    });
-    container.appendChild(btn);
-  });
-}
-
-async function renderCustomSourceGroup(key) {
-  const group = document.getElementById("wizard-custom-source-group");
-  const appliesTo = CUSTOM_APPLIES_TO[key];
-  document.getElementById("wizard-custom-estimate-label").textContent = CUSTOM_ESTIMATE_LABEL[key];
-  wizardCustomSource = null;
-
-  let catalog = [];
-  if (appliesTo) {
-    try {
-      const resp = await fetch(`/api/data-sources?applies_to=${encodeURIComponent(appliesTo)}`);
-      catalog = await resp.json();
-    } catch {
-      catalog = [];
-    }
-  }
-
-  const options = [...catalog.map((entry) => ({ label: entry.label, value: entry })), { label: "Eigene Schätzung", value: null }];
-  renderChoiceRow(document.getElementById("wizard-custom-source-choice"), options, null, (value) => {
-    wizardCustomSource = value;
-    document.getElementById("wizard-custom-source-citation").textContent = value ? value.citation : "";
-    document.getElementById("wizard-custom-estimate-group").classList.toggle("hidden", !!value);
-  });
-  // Erste Option (falls vorhanden) macht die Radio-Buttons vergleichbar, Auswahl per Klick noetig -
-  // Default ist "Eigene Schaetzung", da eine reale Quelle nur passt, wenn sie zum eigenen Thema passt.
-  document.getElementById("wizard-custom-estimate-group").classList.remove("hidden");
-  document.getElementById("wizard-custom-source-citation").textContent = "";
-  group.classList.remove("hidden");
-}
-
-document.getElementById("wizard-custom-estimate").addEventListener("input", (e) => {
-  document.getElementById("wizard-custom-estimate-value").textContent = `${e.target.value}%`;
-});
-
-document.getElementById("wizard-custom-back").addEventListener("click", () => {
-  showWizardStep(document.getElementById("wizard-step-1"));
-});
-
-document.getElementById("wizard-custom-next").addEventListener("click", () => {
-  renderWizardStep2();
-  showWizardStep(document.getElementById("wizard-step-2"));
-});
-
-function customInitialStateDistribution() {
-  if (wizardCustomSource) {
-    return { ...wizardCustomSource.distribution, source: wizardCustomSource.citation };
-  }
-  const pct = parseInt(document.getElementById("wizard-custom-estimate").value, 10);
-  const label = `Eigene Schätzung: ${pct}%`;
-  if (wizardTypeKey === "verhalten") {
-    return { kind: "choice", params: { options: [0.0, 1.0], weights: [1 - pct / 100, pct / 100] }, source: label };
-  }
-  if (wizardTypeKey === "information") {
-    return { kind: "normal", params: { mean: pct / 100, std: 0.25, min: 0.0, max: 1.0 }, source: label };
-  }
-  return { kind: "normal", params: { mean: (pct / 100) * 2 - 1, std: 0.4, min: -1.0, max: 1.0 }, source: label };
-}
-
-function renderChoiceRow(container, options, current, onPick) {
+function simRenderChoiceRow(container, options, current, onPick) {
   container.innerHTML = "";
   options.forEach((opt) => {
     const btn = document.createElement("button");
@@ -975,113 +845,121 @@ function renderChoiceRow(container, options, current, onPick) {
   });
 }
 
-function renderWizardStep2() {
-  const type = WIZARD_TYPES[wizardTypeKey];
-
-  renderChoiceRow(document.getElementById("wizard-size-choice"), SIZE_OPTIONS, wizardSize, (v) => (wizardSize = v));
-  renderChoiceRow(document.getElementById("wizard-duration-choice"), DURATION_OPTIONS, wizardDuration, (v) => (wizardDuration = v));
-
-  document.getElementById("wizard-slider-label").textContent = type.sliderLabel;
-  document.getElementById("wizard-slider-low").textContent = type.sliderLowText;
-  document.getElementById("wizard-slider-high").textContent = type.sliderHighText;
-  const slider = document.getElementById("wizard-slider");
-  slider.min = type.sliderMin;
-  slider.max = type.sliderMax;
-  slider.step = type.sliderStep;
-  slider.value = type.sliderDefault;
-
-  const eventGroup = document.getElementById("wizard-event-group");
-  eventGroup.classList.toggle("hidden", !type.supportsEvent);
-  document.getElementById("wizard-event-label").textContent = type.eventLabel || "";
-  const eventToggle = document.getElementById("wizard-event-toggle");
-  eventToggle.checked = false;
-  document.getElementById("wizard-event-tick-group").classList.add("hidden");
-  document.getElementById("wizard-event-tick").value = Math.round(wizardDuration / 3);
+function simRenderKindCards() {
+  const container = document.getElementById("s-kind-cards");
+  container.innerHTML = "";
+  Object.entries(SIM_KINDS).forEach(([key, kind]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wizard-card" + (key === simKindKey ? " active" : "");
+    btn.innerHTML = `<strong>${kind.label}</strong><span>${kind.description}</span>`;
+    btn.addEventListener("click", () => {
+      simKindKey = key;
+      Array.from(container.children).forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+      simApplyKind();
+    });
+    container.appendChild(btn);
+  });
 }
 
-document.getElementById("wizard-event-toggle").addEventListener("change", (e) => {
-  document.getElementById("wizard-event-tick-group").classList.toggle("hidden", !e.target.checked);
+async function simApplyKind() {
+  const kind = SIM_KINDS[simKindKey];
+
+  document.getElementById("s-slider-label").textContent = kind.sliderLabel;
+  document.getElementById("s-slider-low").textContent = kind.sliderLowText;
+  document.getElementById("s-slider-high").textContent = kind.sliderHighText;
+  const slider = document.getElementById("s-slider");
+  slider.min = kind.sliderMin;
+  slider.max = kind.sliderMax;
+  slider.step = kind.sliderStep;
+  slider.value = kind.sliderDefault;
+
+  document.getElementById("s-estimate-label").textContent = kind.estimateLabel;
+
+  document.getElementById("s-event-group").classList.toggle("hidden", !kind.eventLabel);
+  document.getElementById("s-event-label").textContent = kind.eventLabel || "";
+  document.getElementById("s-event-toggle").checked = false;
+  document.getElementById("s-event-tick-group").classList.add("hidden");
+  document.getElementById("s-event-tick").value = Math.round(simDuration / 3);
+
+  simRealDataEntry = null;
+  document.getElementById("s-use-real-data").checked = false;
+  const realDataRow = document.getElementById("s-real-data-row");
+  realDataRow.classList.add("hidden");
+  if (kind.appliesTo) {
+    try {
+      const resp = await fetch(`/api/data-sources?applies_to=${encodeURIComponent(kind.appliesTo)}`);
+      const catalog = await resp.json();
+      if (catalog.length > 0) {
+        const entry = catalog[0];
+        document.getElementById("s-real-data-label").textContent = entry.label;
+        realDataRow.classList.remove("hidden");
+        realDataRow.title = entry.citation;
+        document.getElementById("s-use-real-data").onchange = (e) => {
+          simRealDataEntry = e.target.checked ? entry : null;
+        };
+      }
+    } catch {
+      // Katalog nicht erreichbar - Formular bleibt mit eigener Schaetzung nutzbar.
+    }
+  }
+}
+
+document.getElementById("s-estimate").addEventListener("input", (e) => {
+  document.getElementById("s-estimate-value").textContent = `${e.target.value}%`;
 });
 
-document.getElementById("wizard-back-1").addEventListener("click", () => {
-  showWizardStep(document.getElementById(wizardIsCustom ? "wizard-custom-setup" : "wizard-step-1"));
+document.getElementById("s-event-toggle").addEventListener("change", (e) => {
+  document.getElementById("s-event-tick-group").classList.toggle("hidden", !e.target.checked);
 });
 
-document.getElementById("wizard-next-2").addEventListener("click", () => {
-  renderWizardStep3();
-  showWizardStep(document.getElementById("wizard-step-3"));
-});
+simRenderChoiceRow(document.getElementById("s-size-choice"), SIM_SIZE_OPTIONS, simSize, (v) => (simSize = v));
+simRenderChoiceRow(document.getElementById("s-duration-choice"), SIM_DURATION_OPTIONS, simDuration, (v) => (simDuration = v));
 
-document.getElementById("wizard-back-2").addEventListener("click", () => showWizardStep(document.getElementById("wizard-step-2")));
-
-function buildWizardConfig() {
-  const type = WIZARD_TYPES[wizardTypeKey];
-  const base = getExampleConfig(type.exampleFile);
+function simBuildConfig() {
+  const kind = SIM_KINDS[simKindKey];
+  const base = simGetExampleConfig(kind.exampleFile);
   if (!base) return null;
 
-  base.population.size = wizardSize;
-  base.time.steps = wizardDuration;
+  base.population.size = simSize;
+  base.time.steps = simDuration;
 
-  const sliderValue = parseFloat(document.getElementById("wizard-slider").value);
-  type.applySlider(base, sliderValue);
+  const sliderValue = parseFloat(document.getElementById("s-slider").value);
+  kind.applySlider(base, sliderValue);
 
-  const eventOn = type.supportsEvent && document.getElementById("wizard-event-toggle").checked;
+  const eventOn = kind.eventLabel && document.getElementById("s-event-toggle").checked;
   if (eventOn) {
-    const tick = parseInt(document.getElementById("wizard-event-tick").value, 10);
-    type.addEvent(base, tick);
+    const tick = parseInt(document.getElementById("s-event-tick").value, 10);
+    kind.addEvent(base, tick);
   } else {
     base.events = [];
   }
 
-  if (wizardIsCustom) {
-    base.initial_state.opinion = customInitialStateDistribution();
-    const topic = document.getElementById("wizard-custom-topic").value.trim();
-    base.name = topic ? `Eigenes Szenario: ${topic}` : "Eigenes Szenario";
+  if (simRealDataEntry) {
+    base.initial_state.opinion = { ...simRealDataEntry.distribution, source: simRealDataEntry.citation };
+  } else {
+    const pct = parseInt(document.getElementById("s-estimate").value, 10);
+    base.initial_state.opinion = kind.estimateDistribution(pct);
   }
+
+  const topic = document.getElementById("s-topic").value.trim();
+  base.name = topic ? `${topic} (${kind.label})` : kind.label;
 
   return base;
 }
 
-function renderWizardStep3() {
-  const type = WIZARD_TYPES[wizardTypeKey];
-  const sliderValue = parseFloat(document.getElementById("wizard-slider").value);
-  const midpoint = (type.sliderMin + type.sliderMax) / 2;
-  const sliderDesc = sliderValue < midpoint ? type.sliderLowText : type.sliderHighText;
-  const eventOn = type.supportsEvent && document.getElementById("wizard-event-toggle").checked;
-  const eventTick = document.getElementById("wizard-event-tick").value;
+document.getElementById("s-run").addEventListener("click", async () => {
+  const errorBox2 = document.getElementById("s-error");
+  errorBox2.classList.add("hidden");
 
-  if (wizardIsCustom) {
-    const topic = document.getElementById("wizard-custom-topic").value.trim() || "dein Thema";
-    const sourceNote = wizardCustomSource
-      ? `Ausgangswerte basieren auf: ${wizardCustomSource.label}.`
-      : `Ausgangswerte: eigene Schätzung (${document.getElementById("wizard-custom-estimate").value}%).`;
-    document.getElementById("wizard-summary").textContent =
-      `Du simulierst "${topic}" (${type.label.toLowerCase()}) bei ${wizardSize} Personen. ` +
-      `Sie sind dabei ${sliderDesc}. Beobachtet wird über ${wizardDuration} Zeitschritte. ${sourceNote}` +
-      (eventOn ? ` Bei Schritt ${eventTick} kommt ein Ereignis dazu.` : "");
-    return;
-  }
-
-  document.getElementById("wizard-summary").textContent = type.summarySentence({
-    size: wizardSize,
-    duration: wizardDuration,
-    sliderDesc,
-    eventOn,
-    eventTick,
-  });
-}
-
-document.getElementById("wizard-run").addEventListener("click", async () => {
-  const wizardError = document.getElementById("wizard-error");
-  wizardError.classList.add("hidden");
-
-  const config = buildWizardConfig();
+  const config = simBuildConfig();
   if (!config) {
-    wizardError.textContent = "Beispiel-Konfiguration noch nicht geladen - bitte kurz warten und erneut versuchen.";
-    wizardError.classList.remove("hidden");
+    errorBox2.textContent = "Beispiel-Konfiguration noch nicht geladen - bitte kurz warten und erneut versuchen.";
+    errorBox2.classList.remove("hidden");
     return;
   }
-  wizardLastConfig = config;
+  simLastConfig = config;
 
   try {
     const response = await fetch("/api/run", {
@@ -1091,24 +969,24 @@ document.getElementById("wizard-run").addEventListener("click", async () => {
     });
     const data = await response.json();
     if (!response.ok) {
-      wizardError.textContent = data.error || "Unbekannter Fehler";
-      wizardError.classList.remove("hidden");
+      errorBox2.textContent = data.error || "Unbekannter Fehler";
+      errorBox2.classList.remove("hidden");
       return;
     }
-    wizardLastResult = data;
-    document.getElementById("wizard-interpretation").textContent = WIZARD_TYPES[wizardTypeKey].interpret(data);
-    renderWizardChart(data);
-    showWizardStep(document.getElementById("wizard-result"));
+    document.getElementById("s-interpretation").textContent = SIM_KINDS[simKindKey].interpret(data);
+    simRenderChart(data);
+    document.getElementById("s-result").classList.remove("hidden");
+    document.getElementById("s-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (err) {
-    wizardError.textContent = `Verbindung zum Server fehlgeschlagen: ${err.message}`;
-    wizardError.classList.remove("hidden");
+    errorBox2.textContent = `Verbindung zum Server fehlgeschlagen: ${err.message}`;
+    errorBox2.classList.remove("hidden");
   }
 });
 
-function renderWizardChart(data) {
-  const ctx = document.getElementById("wizard-chart");
-  if (wizardChart) wizardChart.destroy();
-  wizardChart = new Chart(ctx, {
+function simRenderChart(data) {
+  const ctx = document.getElementById("s-chart");
+  if (simChart) simChart.destroy();
+  simChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: data.ticks,
@@ -1127,20 +1005,12 @@ function renderWizardChart(data) {
   });
 }
 
-document.getElementById("wizard-restart").addEventListener("click", () => {
-  wizardTypeKey = null;
-  wizardIsCustom = false;
-  wizardCustomSource = null;
-  document.getElementById("wizard-custom-topic").value = "";
-  document.getElementById("wizard-custom-next").disabled = true;
-  document.getElementById("wizard-custom-source-group").classList.add("hidden");
-  showWizardStep(document.getElementById("wizard-step-1"));
-});
-
-document.getElementById("wizard-open-advanced").addEventListener("click", () => {
-  if (wizardLastConfig) loadConfigIntoForm(wizardLastConfig);
+document.getElementById("s-open-advanced").addEventListener("click", () => {
+  if (simLastConfig) loadConfigIntoForm(simLastConfig);
   setMode("advanced");
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-renderWizardCards();
+simRenderKindCards();
+simApplyKind();
+

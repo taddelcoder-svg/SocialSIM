@@ -19,91 +19,62 @@
 
 <main>
   <section class="panel wizard-panel" id="simple-mode">
-    <div class="wizard-progress">
-      <span class="wizard-dot" data-step="1">1</span>
-      <span class="wizard-dot" data-step="2">2</span>
-      <span class="wizard-dot" data-step="3">3</span>
+    <div class="field-group">
+      <label for="s-topic">Worum geht es?</label>
+      <input type="text" id="s-topic" placeholder="z.B. Klimawandel, Homeoffice, ein Gerücht ... (optional)" />
     </div>
 
-    <div id="wizard-step-1" class="wizard-step">
-      <h2>Was m&ouml;chtest du herausfinden?</h2>
-      <div class="wizard-cards" id="wizard-type-cards"></div>
+    <div class="field-group">
+      <label>Was für eine Frage ist das?</label>
+      <div class="wizard-cards" id="s-kind-cards"></div>
     </div>
 
-    <div id="wizard-custom-setup" class="wizard-step hidden">
-      <h2>Eigenes Szenario</h2>
-      <div class="field-group">
-        <label for="wizard-custom-topic">Worum geht es? (kurzer Titel)</label>
-        <input type="text" id="wizard-custom-topic" placeholder="z.B. Akzeptanz von Homeoffice" />
-      </div>
-      <div class="field-group">
-        <label>Was davon m&ouml;chtest du untersuchen?</label>
-        <div class="wizard-cards" id="wizard-custom-kind-cards"></div>
-      </div>
-      <div class="field-group hidden" id="wizard-custom-source-group">
-        <label id="wizard-custom-source-label">Ausgangswerte</label>
-        <div class="wizard-choice-row" id="wizard-custom-source-choice"></div>
-        <p id="wizard-custom-source-citation" class="muted"></p>
-        <div id="wizard-custom-estimate-group">
-          <label id="wizard-custom-estimate-label"></label>
-          <input type="range" id="wizard-custom-estimate" min="0" max="100" step="5" value="30" />
-          <div class="wizard-slider-ends"><span>0%</span><span id="wizard-custom-estimate-value">30%</span><span>100%</span></div>
+    <div class="field-group">
+      <label id="s-slider-label"></label>
+      <input type="range" id="s-slider" />
+      <div class="wizard-slider-ends"><span id="s-slider-low"></span><span id="s-slider-high"></span></div>
+    </div>
+
+    <div class="field-group">
+      <label id="s-estimate-label"></label>
+      <input type="range" id="s-estimate" min="0" max="100" step="5" value="30" />
+      <div class="wizard-slider-ends"><span>0%</span><span id="s-estimate-value">30%</span><span>100%</span></div>
+      <label id="s-real-data-row" class="wizard-checkbox-row hidden">
+        <input type="checkbox" id="s-use-real-data" /> Stattdessen echte Daten nutzen: <span id="s-real-data-label"></span>
+      </label>
+    </div>
+
+    <details class="wizard-details">
+      <summary>Weitere Einstellungen (optional)</summary>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Gruppengr&ouml;&szlig;e</label>
+          <div class="wizard-choice-row" id="s-size-choice"></div>
+        </div>
+        <div class="field-group">
+          <label>Beobachtungsdauer</label>
+          <div class="wizard-choice-row" id="s-duration-choice"></div>
         </div>
       </div>
-      <div class="actions">
-        <button type="button" id="wizard-custom-back" class="secondary">Zur&uuml;ck</button>
-        <button type="button" id="wizard-custom-next" class="primary" disabled>Weiter</button>
-      </div>
-    </div>
-
-    <div id="wizard-step-2" class="wizard-step hidden">
-      <h2>Stellschrauben</h2>
-      <div class="field-group">
-        <label>Gruppengr&ouml;&szlig;e</label>
-        <div class="wizard-choice-row" id="wizard-size-choice"></div>
-      </div>
-      <div class="field-group">
-        <label>Beobachtungsdauer</label>
-        <div class="wizard-choice-row" id="wizard-duration-choice"></div>
-      </div>
-      <div class="field-group">
-        <label id="wizard-slider-label"></label>
-        <input type="range" id="wizard-slider" />
-        <div class="wizard-slider-ends">
-          <span id="wizard-slider-low"></span>
-          <span id="wizard-slider-high"></span>
+      <div class="field-group" id="s-event-group">
+        <label><input type="checkbox" id="s-event-toggle" /> <span id="s-event-label"></span></label>
+        <div id="s-event-tick-group" class="hidden">
+          <label for="s-event-tick">Bei welchem Zeitschritt?</label>
+          <input type="number" id="s-event-tick" min="1" />
         </div>
       </div>
-      <div class="field-group" id="wizard-event-group">
-        <label><input type="checkbox" id="wizard-event-toggle" /> <span id="wizard-event-label"></span></label>
-        <div id="wizard-event-tick-group" class="hidden">
-          <label for="wizard-event-tick">Bei welchem Zeitschritt?</label>
-          <input type="number" id="wizard-event-tick" min="1" />
-        </div>
-      </div>
-      <div class="actions">
-        <button type="button" id="wizard-back-1" class="secondary">Zur&uuml;ck</button>
-        <button type="button" id="wizard-next-2" class="primary">Weiter</button>
-      </div>
-    </div>
+    </details>
 
-    <div id="wizard-step-3" class="wizard-step hidden">
-      <h2>Zusammenfassung</h2>
-      <p id="wizard-summary" class="wizard-summary-text"></p>
-      <div class="actions">
-        <button type="button" id="wizard-back-2" class="secondary">Zur&uuml;ck</button>
-        <button type="button" id="wizard-run" class="primary">Simulation starten</button>
-      </div>
-      <p id="wizard-error" class="error hidden"></p>
+    <div class="actions">
+      <button type="button" id="s-run" class="primary">Simulieren</button>
     </div>
+    <p id="s-error" class="error hidden"></p>
 
-    <div id="wizard-result" class="wizard-step hidden">
-      <h2>Ergebnis</h2>
-      <p id="wizard-interpretation" class="wizard-summary-text"></p>
-      <canvas id="wizard-chart" height="260"></canvas>
+    <div id="s-result" class="hidden">
+      <p id="s-interpretation" class="wizard-summary-text"></p>
+      <canvas id="s-chart" height="240"></canvas>
       <div class="actions">
-        <button type="button" id="wizard-restart" class="secondary">Neues Szenario</button>
-        <button type="button" id="wizard-open-advanced" class="secondary">Erweiterte Ansicht &ouml;ffnen</button>
+        <button type="button" id="s-open-advanced" class="secondary">Erweiterte Ansicht &ouml;ffnen</button>
       </div>
     </div>
   </section>

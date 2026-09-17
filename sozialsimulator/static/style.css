@@ -56,19 +56,8 @@ main {
 }
 .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* Wizard (Einfacher Modus) */
+/* Wizard (Einfacher Modus) - ein einziges Formular, keine Schritte */
 #simple-mode { grid-column: 1 / -1; max-width: 640px; margin: 0 auto; }
-
-.wizard-progress { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-.wizard-dot {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: #eef0f2; color: var(--muted); font-size: 0.85rem; font-weight: 600;
-}
-.wizard-dot.active { background: var(--accent); color: #fff; }
-.wizard-dot.done { background: #cfe4d9; color: var(--accent-hover); }
-
-.wizard-step h2 { margin-top: 0; font-size: 1.15rem; }
 
 .wizard-cards { display: flex; flex-direction: column; gap: 10px; }
 .wizard-card {
@@ -81,8 +70,20 @@ main {
   font: inherit;
 }
 .wizard-card:hover { border-color: var(--accent); }
+.wizard-card.active { border-color: var(--accent); background: #f0f5f2; }
 .wizard-card strong { display: block; margin-bottom: 4px; }
 .wizard-card span { color: var(--muted); font-size: 0.85rem; }
+
+.wizard-details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.wizard-details summary { cursor: pointer; font-size: 0.88rem; color: var(--muted); }
+.wizard-details[open] summary { margin-bottom: 10px; }
+
+.wizard-checkbox-row { display: block; margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
 
 .wizard-choice-row { display: flex; gap: 8px; }
 .wizard-choice-row button {
@@ -100,7 +101,7 @@ main {
 
 .wizard-summary-text { font-size: 1rem; line-height: 1.5; background: #f0f5f2; border-radius: 8px; padding: 14px 16px; }
 
-#wizard-event-tick-group { margin-top: 8px; }
+#s-event-tick-group { margin-top: 8px; }
 
 .result-panel { position: sticky; top: 16px; }
 
