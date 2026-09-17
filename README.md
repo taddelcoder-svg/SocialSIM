@@ -1,5 +1,7 @@
 # Sozialsimulator – Konfigurationsschicht (Prototyp)
 
+[![CI](https://github.com/taddelcoder-svg/SocialSIM/actions/workflows/ci.yml/badge.svg)](https://github.com/taddelcoder-svg/SocialSIM/actions/workflows/ci.yml)
+
 Implementiert Abschnitt 2–5 des Framework-Konzepts: ein Szenario wird komplett
 als JSON-Konfiguration beschrieben (Population, Netzwerk, Ausgangszustand,
 Mechanik, Ereignisse, Zeit) – ohne Code zu ändern.
