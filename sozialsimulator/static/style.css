@@ -85,6 +85,18 @@ main {
 
 .wizard-checkbox-row { display: block; margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
 
+.projection-box {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+.projection-intro { margin: 0 0 8px; font-style: italic; }
+.projection-controls { align-items: center; gap: 8px; margin-bottom: 10px; }
+.projection-controls input { width: 70px; }
+.projection-controls select { width: auto; }
+.projection-text { font-size: 0.92rem; }
+
 .wizard-choice-row { display: flex; gap: 8px; }
 .wizard-choice-row button {
   flex: 1;

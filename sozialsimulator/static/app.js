@@ -704,6 +704,8 @@ const SIM_KINDS = {
     sliderHighText: "sehr offen",
     estimateLabel: "Wie viele finden das Thema anfangs sehr wichtig?",
     appliesTo: "opinion_continuous",
+    toPercent: (v) => Math.round(((v + 1) / 2) * 100),
+    metricLabel: "Anteil, der das Thema ernst nimmt",
     applySlider: (config, value) => {
       config.mechanics[0].params.epsilon = value;
     },
@@ -741,6 +743,8 @@ const SIM_KINDS = {
     sliderHighText: "eng vernetzt",
     estimateLabel: "Wie viele haben es anfangs schon übernommen?",
     appliesTo: "initial_adoption",
+    toPercent: (v) => Math.round(v * 100),
+    metricLabel: "Anteil, der das neue Verhalten übernommen hat",
     applySlider: (config, value) => {
       config.network.params.k = value;
     },
@@ -771,7 +775,9 @@ const SIM_KINDS = {
     sliderLowText: "leicht beeinflussbar",
     sliderHighText: "sehr eigenständig",
     estimateLabel: "Wie viele halten die Nachricht anfangs für glaubwürdig?",
-    appliesTo: null,
+    appliesTo: "trust_media",
+    toPercent: (v) => Math.round(v * 100),
+    metricLabel: "Anteil, der die Nachricht für glaubwürdig hält",
     applySlider: (config, value) => {
       config.mechanics[0].params.self_weight = value;
     },
@@ -819,6 +825,7 @@ let simSize = SIM_SIZE_OPTIONS[1].value;
 let simDuration = SIM_DURATION_OPTIONS[1].value;
 let simRealDataEntry = null;
 let simLastConfig = null;
+let simLastData = null;
 let simChart = null;
 
 function simGetExampleConfig(filename) {
@@ -884,21 +891,30 @@ async function simApplyKind() {
   document.getElementById("s-event-tick").value = Math.round(simDuration / 3);
 
   simRealDataEntry = null;
-  document.getElementById("s-use-real-data").checked = false;
   const realDataRow = document.getElementById("s-real-data-row");
+  const select = document.getElementById("s-real-data-select");
+  const citationEl = document.getElementById("s-real-data-citation");
+  select.innerHTML = '<option value="">Eigene Schätzung (Regler oben)</option>';
+  citationEl.textContent = "";
   realDataRow.classList.add("hidden");
+
   if (kind.appliesTo) {
     try {
       const resp = await fetch(`/api/data-sources?applies_to=${encodeURIComponent(kind.appliesTo)}`);
       const catalog = await resp.json();
       if (catalog.length > 0) {
-        const entry = catalog[0];
-        document.getElementById("s-real-data-label").textContent = entry.label;
-        realDataRow.classList.remove("hidden");
-        realDataRow.title = entry.citation;
-        document.getElementById("s-use-real-data").onchange = (e) => {
-          simRealDataEntry = e.target.checked ? entry : null;
+        catalog.forEach((entry, i) => {
+          const opt = document.createElement("option");
+          opt.value = String(i);
+          opt.textContent = entry.label;
+          select.appendChild(opt);
+        });
+        select.onchange = () => {
+          const idx = select.value;
+          simRealDataEntry = idx === "" ? null : catalog[parseInt(idx, 10)];
+          citationEl.textContent = simRealDataEntry ? simRealDataEntry.citation : "";
         };
+        realDataRow.classList.remove("hidden");
       }
     } catch {
       // Katalog nicht erreichbar - Formular bleibt mit eigener Schaetzung nutzbar.
@@ -973,8 +989,10 @@ document.getElementById("s-run").addEventListener("click", async () => {
       errorBox2.classList.remove("hidden");
       return;
     }
+    simLastData = data;
     document.getElementById("s-interpretation").textContent = SIM_KINDS[simKindKey].interpret(data);
     simRenderChart(data);
+    simRenderProjection();
     document.getElementById("s-result").classList.remove("hidden");
     document.getElementById("s-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (err) {
@@ -986,24 +1004,75 @@ document.getElementById("s-run").addEventListener("click", async () => {
 function simRenderChart(data) {
   const ctx = document.getElementById("s-chart");
   if (simChart) simChart.destroy();
+  const datasets = [
+    {
+      label: "Mittlerer Wert",
+      data: data.mean_opinion,
+      borderColor: "#2f6f4f",
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      tension: 0.15,
+    },
+  ];
+  if (data.mean_opinion_max) {
+    datasets.push(
+      {
+        label: "max. Wiederholungslauf",
+        data: data.mean_opinion_max,
+        borderColor: "rgba(47,111,79,0.25)",
+        backgroundColor: "transparent",
+        pointRadius: 0,
+        borderDash: [4, 4],
+      },
+      {
+        label: "min. Wiederholungslauf",
+        data: data.mean_opinion_min,
+        borderColor: "rgba(47,111,79,0.25)",
+        backgroundColor: "transparent",
+        pointRadius: 0,
+        borderDash: [4, 4],
+      }
+    );
+  }
   simChart = new Chart(ctx, {
     type: "line",
-    data: {
-      labels: data.ticks,
-      datasets: [
-        {
-          label: "Mittlerer Wert",
-          data: data.mean_opinion,
-          borderColor: "#2f6f4f",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          tension: 0.15,
-        },
-      ],
-    },
+    data: { labels: data.ticks, datasets },
     options: { responsive: true, scales: { x: { title: { display: true, text: "Zeitschritt" } } } },
   });
 }
+
+// ---- Zukunftsprojektion: reale Zeitspanne + Bandbreite aus den Wiederholungslaeufen ----
+// Bewusst keine "genaue Vorhersage": das Framework-Dokument (Abschnitt 1) schliesst das
+// explizit aus. Stattdessen ein klar ausgewiesener plausibler Bereich aus dem, was die
+// Simulation selbst an Streuung zwischen ihren Laeufen zeigt - mit Caveat im Text.
+function simRenderProjection() {
+  if (!simLastData) return;
+  const kind = SIM_KINDS[simKindKey];
+  const lastIdx = simLastData.ticks.length - 1;
+  const steps = simLastData.ticks[lastIdx];
+
+  const meanPct = kind.toPercent(simLastData.mean_opinion[lastIdx]);
+  const minPct = kind.toPercent(simLastData.mean_opinion_min[lastIdx]);
+  const maxPct = kind.toPercent(simLastData.mean_opinion_max[lastIdx]);
+
+  const tickCount = parseFloat(document.getElementById("s-tick-count").value) || 1;
+  const tickUnit = document.getElementById("s-tick-unit").value;
+  const totalRealSpan = Math.round(steps * tickCount * 10) / 10;
+
+  const rangeText =
+    minPct === maxPct
+      ? `bei etwa ${meanPct}%`
+      : `zwischen ${Math.min(minPct, maxPct)}% und ${Math.max(minPct, maxPct)}% (Mittel: ${meanPct}%)`;
+
+  document.getElementById("s-projection").textContent =
+    `Wenn sich diese Dynamik unverändert über ${totalRealSpan} ${tickUnit} fortsetzt, liegt der ${kind.metricLabel} ` +
+    `laut den ${simLastData.runs} Wiederholungsläufen dieser Simulation plausibel ${rangeText}. ` +
+    `Das ist eine modellbasierte Spekulation, keine Vorhersage: reale Ereignisse, neue Informationen ` +
+    `oder geänderte Rahmenbedingungen können den tatsächlichen Verlauf jederzeit ändern.`;
+}
+
+document.getElementById("s-tick-count").addEventListener("input", simRenderProjection);
+document.getElementById("s-tick-unit").addEventListener("change", simRenderProjection);
 
 document.getElementById("s-open-advanced").addEventListener("click", () => {
   if (simLastConfig) loadConfigIntoForm(simLastConfig);

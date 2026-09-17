@@ -57,13 +57,21 @@ def run():
     except (ConfigError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
-    aggregated = results.groupby("tick")[["mean_opinion", "std_opinion"]].mean().reset_index()
+    grouped = results.groupby("tick")
+    aggregated = grouped[["mean_opinion", "std_opinion"]].mean().reset_index()
+    mean_range = grouped["mean_opinion"].agg(["min", "max"]).reset_index()
 
     return jsonify(
         {
             "ticks": aggregated["tick"].tolist(),
             "mean_opinion": aggregated["mean_opinion"].tolist(),
             "std_opinion": aggregated["std_opinion"].tolist(),
+            # Spannweite von mean_opinion UEBER die Wiederholungslaeufe je Tick (nicht
+            # zu verwechseln mit std_opinion, das die Streuung ZWISCHEN Agenten misst) -
+            # Grundlage fuer eine ehrliche Bandbreite statt einer einzelnen Zahl
+            # (Framework-Abschnitt 8, 'Mehrfachlaeufe').
+            "mean_opinion_min": mean_range["min"].tolist(),
+            "mean_opinion_max": mean_range["max"].tolist(),
             "runs": config.time.runs,
             "population_size": config.population.size,
             "mechanic": " + ".join(m.model for m in config.mechanics),

@@ -39,9 +39,13 @@
       <label id="s-estimate-label"></label>
       <input type="range" id="s-estimate" min="0" max="100" step="5" value="30" />
       <div class="wizard-slider-ends"><span>0%</span><span id="s-estimate-value">30%</span><span>100%</span></div>
-      <label id="s-real-data-row" class="wizard-checkbox-row hidden">
-        <input type="checkbox" id="s-use-real-data" /> Stattdessen echte Daten nutzen: <span id="s-real-data-label"></span>
-      </label>
+      <div id="s-real-data-row" class="hidden">
+        <label for="s-real-data-select">Oder Ausgangswerte aus echten Daten nehmen</label>
+        <select id="s-real-data-select">
+          <option value="">Eigene Sch&auml;tzung (Regler oben)</option>
+        </select>
+        <p id="s-real-data-citation" class="muted"></p>
+      </div>
     </div>
 
     <details class="wizard-details">
@@ -73,6 +77,21 @@
     <div id="s-result" class="hidden">
       <p id="s-interpretation" class="wizard-summary-text"></p>
       <canvas id="s-chart" height="240"></canvas>
+
+      <div class="projection-box">
+        <p class="muted projection-intro">Modellprojektion f&uuml;r die reale Welt (keine Vorhersage - siehe Hinweis unten)</p>
+        <div class="field-row projection-controls">
+          <span>1 Zeitschritt &asymp;</span>
+          <input type="number" id="s-tick-count" min="1" value="1" />
+          <select id="s-tick-unit">
+            <option value="Tag(en)">Tag(e)</option>
+            <option value="Woche(n)" selected>Woche(n)</option>
+            <option value="Monat(en)">Monat(e)</option>
+          </select>
+        </div>
+        <p id="s-projection" class="wizard-summary-text projection-text"></p>
+      </div>
+
       <div class="actions">
         <button type="button" id="s-open-advanced" class="secondary">Erweiterte Ansicht &ouml;ffnen</button>
       </div>

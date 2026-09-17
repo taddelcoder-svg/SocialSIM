@@ -6,10 +6,15 @@ zu einer frei geschaetzten Verteilung an. `applies_to` sagt, zu welcher
 Wizard-Kategorie ein Eintrag passt: "opinion_continuous" (Meinungsbildung),
 "initial_adoption" (Verhaltensverbreitung, Startanteil).
 
-Fuer "Glaubwuerdigkeit einer Nachricht" gibt es bewusst keinen Eintrag: die
-Ausgangsmeinung zu einer beliebigen, vom Nutzer erfundenen Nachricht hat
-keine allgemeine reale Referenzverteilung (vgl. beispiel_degroot.json) - hier
-bleibt nur die eigene Schaetzung, statt Daten falsch zu uebertragen.
+Fuer die Ausgangsmeinung zu einer konkreten, vom Nutzer erfundenen Nachricht
+gibt es keine allgemeine reale Referenzverteilung (vgl. beispiel_degroot.json);
+"trust_media" bildet stattdessen das allgemeine Grundvertrauen in Nachrichten
+auf sozialen Medien ab - ein plausibler Ausgangspunkt, aber kein Ersatz fuer
+eine Studie zur konkreten Nachricht selbst.
+
+Diese Sammlung soll bei Bedarf weiter wachsen: neuer Eintrag = neues Dict mit
+`id`, `label`, `applies_to`, `citation` (Quelle + Jahr + exakte Zahl) und
+`distribution` (siehe config.py `Distribution`), kein Code sonst noetig.
 """
 
 from __future__ import annotations
@@ -46,6 +51,71 @@ DATA_SOURCES: list[dict] = [
         "distribution": {
             "kind": "choice",
             "params": {"options": [0.0, 1.0], "weights": [0.975, 0.025]},
+        },
+    },
+    {
+        "id": "eurostat_homeoffice_de_2023",
+        "label": "Homeoffice-Nutzung (Deutschland, 2023)",
+        "applies_to": "initial_adoption",
+        "citation": (
+            "Statistisches Bundesamt / Eurostat (Arbeitskraefteerhebung, Reihe lfsa_ehomp), 2023: "
+            "23.5% der Erwerbstaetigen in Deutschland arbeiteten (teilweise) im Homeoffice "
+            "(13.2% ueberwiegend, 10.4% an weniger als der Haelfte der Arbeitstage)"
+        ),
+        "distribution": {
+            "kind": "choice",
+            "params": {"options": [0.0, 1.0], "weights": [0.765, 0.235]},
+        },
+    },
+    {
+        "id": "covid_vaccine_willingness_de_2021",
+        "label": "Impfbereitschaft gegen COVID-19 (Deutschland, August 2021)",
+        "applies_to": "initial_adoption",
+        "citation": (
+            "Umfrage August 2021 (Statista): 83% der Befragten in Deutschland gaben an, sich "
+            "sicher gegen COVID-19 impfen lassen zu wollen bzw. bereits geimpft zu sein"
+        ),
+        "distribution": {
+            "kind": "choice",
+            "params": {"options": [0.0, 1.0], "weights": [0.17, 0.83]},
+        },
+    },
+    {
+        "id": "nielsen_90_9_1",
+        "label": "Beteiligungsungleichheit in Online-Communities (Nielsen)",
+        "applies_to": "credibility",
+        "citation": (
+            "Nielsen (2006), 'Participation Inequality: The 90-9-1 Rule for Social Features': "
+            "ca. 90% Lurker (kaum Reichweite), 9% gelegentliche Beitragende, 1% sehr aktive "
+            "Vielposter/Multiplikatoren mit ueberproportionaler Reichweite"
+        ),
+        "distribution": {
+            "kind": "histogram",
+            "params": {
+                "bins": [
+                    {"min": 0.1, "max": 0.5, "weight": 0.90},
+                    {"min": 0.5, "max": 2.0, "weight": 0.09},
+                    {"min": 2.0, "max": 5.0, "weight": 0.01},
+                ]
+            },
+        },
+    },
+    {
+        "id": "reuters_trust_social_media_2026",
+        "label": "Grundvertrauen in Nachrichten auf sozialen Medien (weltweit, 2026)",
+        "applies_to": "trust_media",
+        "citation": (
+            "Reuters Institute Digital News Report 2026 (~100.000 Befragte, 48 Laender): nur 22% "
+            "vertrauen Nachrichten auf sozialen Medien, 78% tun das nicht"
+        ),
+        "distribution": {
+            "kind": "histogram",
+            "params": {
+                "bins": [
+                    {"min": 0.0, "max": 0.4, "weight": 0.78},
+                    {"min": 0.6, "max": 1.0, "weight": 0.22},
+                ]
+            },
         },
     },
 ]

@@ -41,10 +41,17 @@ Startet einen lokalen Server unter `http://127.0.0.1:5000` mit zwei Modi (oben r
   Schätzung, damit reale Daten nie versehentlich auf ein unpassendes Thema
   übertragen werden. "Simulieren" antwortet als Klartext-Satz ("Die Gruppe
   bleibt gespalten...") statt mit Rohzahlen.
-- **Datenquellen-Katalog** (`/api/data-sources`): reale, zitierte Verteilungen
-  (`data_sources.py`, z.B. Eurobarometer-Klimasorge, Rogers'
-  Frühe-Übernehmer-Anteil) - erweiterbar durch neue Einträge
-  (Distribution + Zitat + `applies_to`).
+- **Datenquellen-Katalog** (`/api/data-sources`, sechs Eintr&auml;ge, siehe
+  n&auml;chster Abschnitt) - erweiterbar durch neue Eintr&auml;ge in
+  `data_sources.py` (Distribution + Zitat + `applies_to`); je Kategorie
+  k&ouml;nnen mehrere Quellen zur Auswahl stehen.
+- **Zukunftsprojektion**: nach jeder Simulation ein Feld "1 Zeitschritt &asymp;
+  X Tage/Wochen/Monate" - rechnet die Simulationsl&auml;nge in eine reale
+  Zeitspanne um und nennt die Bandbreite (nicht nur den Mittelwert!) &uuml;ber
+  die `time.runs`-Wiederholungsl&auml;ufe am Ende, inklusive Caveat, dass dies
+  eine modellbasierte Spekulation und keine Vorhersage ist (Framework-Abschnitt 1
+  & 8). Rein clientseitig aus der schon geladenen Antwort berechnet, kein
+  erneuter Simulationslauf n&ouml;tig, wenn nur die Zeiteinheit ge&auml;ndert wird.
 - **Erweitert**: das volle Formular (Population, Netzwerk, Ausgangszustand,
   mehrere Mechaniken, Ereignisse, Kalibrierung, Sensitivitaetsanalyse). "Aus
   dem Wizard heraus oeffnen" uebernimmt die gerade simulierte Konfiguration
@@ -93,6 +100,23 @@ hypothetischen Falschinformation in `beispiel_degroot.json`), steht das explizit
 als "Annahme" im `source`-Feld - genau die in Framework-Abschnitt 6 geforderte
 Trennung zwischen echten Daten und Annahmen. `beispiel_konsens.json` bleibt
 bewusst rein synthetisch, um Bounded-Confidence-Theorie isoliert zu testen.
+
+Zusaetzlich zu den Beispielszenarien gibt es den **Datenquellen-Katalog**
+(`data_sources.py`, ueber `/api/data-sources` abrufbar), der bei Bedarf weiter
+waechst - aktuell:
+
+| Quelle | `applies_to` | Zahl |
+| --- | --- | --- |
+| Special Eurobarometer 538 (2023), Klimasorge Deutschland | `opinion_continuous` | 71% / 18% / 11% |
+| Rogers (2003), fruehe Uebernehmer | `initial_adoption` | 2.5% |
+| Destatis/Eurostat, Homeoffice-Nutzung Deutschland 2023 | `initial_adoption` | 23.5% |
+| Umfrage August 2021, Impfbereitschaft COVID-19 Deutschland | `initial_adoption` | 83% |
+| Nielsen (2006), 90-9-1-Regel | `credibility` | 90/9/1% |
+| Reuters Institute Digital News Report 2026, Vertrauen in News auf Social Media | `trust_media` | 22% |
+
+Neue Quelle hinzufuegen: ein Dict mit `id`, `label`, `applies_to`, `citation`
+und `distribution` an `DATA_SOURCES` in `data_sources.py` anhaengen - kein
+weiterer Code noetig, die Rahmen-UI und `/api/data-sources` ziehen automatisch nach.
 
 ## Kalibrierung & Sensitivitätsanalyse
 
